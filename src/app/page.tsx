@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import TabBar from '@/components/TabBar';
 import Sidebar from '@/components/Sidebar';
 import ChatPanel from '@/components/ChatPanel';
+import AgentPanel, { type PlanStep } from '@/components/AgentPanel';
 import type { Message } from '@/components/ChatPanel';
 import styles from './page.module.css';
 
@@ -32,6 +33,12 @@ export default function Home() {
   const [tabsData, setTabsData]       = useState<TabData[]>(() => [makeTab(1)]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-1');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Agent / Planning panel state
+  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
+  const [agentLoading, setAgentLoading]     = useState(false);
+  const [agentThinking, setAgentThinking]   = useState('');
+  const [agentSteps, setAgentSteps]         = useState<PlanStep[]>([]);
 
   const tabs = tabsData.map((td) => td.tab);
   const active = tabsData.find((td) => td.tab.id === activeTabId);
@@ -96,10 +103,77 @@ export default function Home() {
 
     const apiUrl = process.env.NEXT_PUBLIC_LLM_API_URL || 'http://localhost:8000/llm/text';
 
+    const fetchPlanStream = async (promptPayload: string) => {
+      try {
+        const res = await fetch('http://localhost:8000/llm/json/plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: promptPayload, model: 'gemma4:e4b' })
+        });
+        if (!res.body) return;
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullPlanStr = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          let addedThink = '';
+          let addedContent = '';
+
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const lines = part.split('\n');
+            let event = '';
+            let dataLines: string[] = [];
+
+            for (const line of lines) {
+              if (line.startsWith('event: ')) {
+                event = line.substring(7).trim();
+              } else if (line.startsWith('data: ')) {
+                dataLines.push(line.substring(6));
+              } else if (line.startsWith('data:')) {
+                dataLines.push(line.substring(5));
+              }
+            }
+            const data = dataLines.join('\n');
+            if (event === 'think') addedThink += data;
+            else if (event === 'content' || (!event && dataLines.length > 0)) addedContent += data;
+          }
+
+          if (addedThink) setAgentThinking(prev => prev + addedThink);
+          if (addedContent) fullPlanStr += addedContent;
+        }
+
+        setAgentLoading(false);
+        try {
+          const m = fullPlanStr.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (m) {
+            const parsed = JSON.parse(m[1]);
+            if (parsed.type === 'plan' && Array.isArray(parsed.steps)) {
+              setAgentSteps(parsed.steps);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse plan steps', e);
+        }
+      } catch (err) {
+        console.error('Plan stream error:', err);
+        setAgentLoading(false);
+      }
+    };
+
     const fetchStream = async () => {
       try {
         const response = await fetch(apiUrl, {
-          method: 'POST', // using POST to send the prompt depending on backend implementation
+          method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: content }) 
         });
@@ -109,10 +183,29 @@ export default function Home() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        
+        let fullMsgContent = '';
+        let isPlanningTriggered = false;
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            if (isPlanningTriggered) {
+                let promptPayload = content;
+                try {
+                  const m = fullMsgContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+                  if (m) {
+                    const parsed = JSON.parse(m[1]);
+                    if (parsed.prompt) promptPayload = parsed.prompt;
+                  } else {
+                     const pMatch = fullMsgContent.match(/"prompt"\s*:\s*"((?:[^"\\]|\\.)*)/);
+                     if (pMatch) promptPayload = pMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                  }
+                } catch {}
+                fetchPlanStream(promptPayload);
+            }
+            break;
+          }
           
           buffer += decoder.decode(value, { stream: true });
           const parts = buffer.split('\n\n');
@@ -141,14 +234,30 @@ export default function Home() {
 
             if (event === 'think') {
                newThink += data;
-            } else if (event === 'content') {
-               newContent += data;
-            } else if (event === 'done') {
-               // stream complete
-            } else if (!event && dataLines.length > 0) {
-               // some SSE servers omit 'event' for default messages
+            } else if (event === 'content' || (!event && dataLines.length > 0)) {
                newContent += data;
             }
+          }
+
+          if (newContent) fullMsgContent += newContent;
+
+          if (!isPlanningTriggered && fullMsgContent.includes('"planning_input"')) {
+            isPlanningTriggered = true;
+            setAgentPanelOpen(true);
+            setAgentLoading(true);
+            setAgentThinking('');
+            setAgentSteps([]);
+
+            setTabsData((prev) =>
+              prev.map((td) => {
+                if (td.tab.id !== activeTabId) return td;
+                const msgIdx = td.messages.findIndex(m => m.id === aiMsgId);
+                if (msgIdx === -1) return td;
+                const msgs = [...td.messages];
+                msgs[msgIdx] = { ...msgs[msgIdx], isPlanningInput: true };
+                return { ...td, messages: msgs };
+              })
+            );
           }
 
           if (newContent || newThink) {
@@ -201,6 +310,13 @@ export default function Home() {
             />
           )}
         </main>
+        <AgentPanel
+          isOpen={agentPanelOpen}
+          isLoading={agentLoading}
+          thinking={agentThinking}
+          steps={agentSteps}
+          onClose={() => setAgentPanelOpen(false)}
+        />
       </div>
     </div>
   );

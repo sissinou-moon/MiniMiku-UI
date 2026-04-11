@@ -6,6 +6,7 @@ export interface Message {
   role: 'user' | 'ai';
   content: string;
   thinkContent?: string;
+  isPlanningInput?: boolean;
   timestamp: Date;
 }
 
@@ -49,6 +50,8 @@ function getDisplayContent(content: string): string {
 
 export default function ChatMessage({ message }: Props) {
   const isUser = message.role === 'user';
+  const isPlan = message.isPlanningInput;
+
   return (
     <div className={`${styles.wrapper} ${isUser ? styles.wrapperUser : styles.wrapperAi}`}>
 
@@ -64,17 +67,31 @@ export default function ChatMessage({ message }: Props) {
           <span className={styles.time}>{fmt(message.timestamp)}</span>
         </div>
         <div className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAi}`}>
+
+          {/* Think block: collapsed for planning_input, expanded normally */}
           {message.thinkContent && (
-            <details className={styles.thinkBox} open>
+            <details className={styles.thinkBox} {...(isPlan ? {} : { open: true })}>
               <summary>Thinking Process</summary>
               <div className={`${styles.text} selectable`}>
                 {message.thinkContent}
               </div>
             </details>
           )}
-          {message.content && (
-            <p className={`${styles.text} selectable`}>{getDisplayContent(message.content)}</p>
+
+          {/* For planning_input: never show raw JSON, show spinner instead */}
+          {isPlan ? (
+            <div className={styles.planningRow}>
+              <span className={styles.planDot} />
+              <span className={styles.planDot} />
+              <span className={styles.planDot} />
+              <span className={styles.planLabel}>Generating plan…</span>
+            </div>
+          ) : (
+            message.content && (
+              <p className={`${styles.text} selectable`}>{getDisplayContent(message.content)}</p>
+            )
           )}
+
         </div>
       </div>
 

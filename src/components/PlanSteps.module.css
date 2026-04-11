@@ -1,0 +1,151 @@
+/* ── Outer container ─────────────────────────────────────────────────────── */
+.container {
+  background: #0D0D0F;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  animation: fade-in 0.25s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header (mac-style title bar) ────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.headerDots {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.headerTitle {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.03em;
+}
+
+.headerCount {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+}
+
+/* ── Steps list ──────────────────────────────────────────────────────────── */
+.steps {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.step {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Left gutter ─────────────────────────────────────────────────────────── */
+.gutter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 18px;
+}
+
+.num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 9px;
+}
+
+.connector {
+  width: 1px;
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  min-height: 10px;
+  margin: 2px 0;
+}
+
+/* ── Step body ───────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  padding: 7px 0 10px;
+  min-width: 0;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toolBadge {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.goal {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-mono);
+}
+
+/* ── Args box ────────────────────────────────────────────────────────────── */
+.argsBox {
+  margin-top: 5px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.argRow {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.argKey  { color: rgba(100, 180, 255, 0.75); flex-shrink: 0; }
+.argSep  { color: rgba(255, 255, 255, 0.2);  flex-shrink: 0; }
+.argVal  { color: rgba(255, 195, 120, 0.7);  word-break: break-all; }

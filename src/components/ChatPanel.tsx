@@ -14,6 +14,7 @@ export interface Message {
   role: 'user' | 'ai';
   content: string;
   thinkContent?: string;
+  isPlanningInput?: boolean;
   timestamp: Date;
 }
 
