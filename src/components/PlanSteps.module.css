@@ -229,3 +229,106 @@
 .retryBtn:hover {
   background: rgba(248, 113, 113, 0.25);
 }
+
+/* ── Copy & Collapsible Result ───────────────────────────────────────────── */
+.successContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.copyBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.copyBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.copyBtn:active {
+  transform: scale(0.95);
+}
+
+.resultContent {
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 9px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.resultContent::-webkit-scrollbar {
+  width: 4px;
+}
+
+.resultContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+/* ── Structured Search Results ─────────────────────────────────────────── */
+.searchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.searchItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.searchItem:last-child {
+  border-bottom: none;
+}
+
+.searchTitle {
+  color: #60A5FA;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+}
+.searchTitle:hover {
+  text-decoration: underline;
+}
+
+.searchSnippet {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.searchUrl {
+  color: #34D399;
+  font-size: 8px;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
