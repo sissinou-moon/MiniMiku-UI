@@ -7,6 +7,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ['@nut-tree-fork/nut-js', '@nut-tree/nut-js', '@nut-tree-fork/libnut', 'libnut'],
   // Required for Electron to load static assets via file:// in prod
   assetPrefix: isProd ? './' : '',
 };

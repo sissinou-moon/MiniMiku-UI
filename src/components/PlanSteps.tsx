@@ -8,6 +8,12 @@ export interface PlanStep {
   goal: string;
 }
 
+export interface StepResult {
+  success: boolean;
+  result: string;
+  error?: string;
+}
+
 const TOOL_COLORS: Record<string, { color: string; bg: string }> = {
   browser_action: { color: '#60A5FA', bg: 'rgba(96,165,250,0.12)' },
   open_app:       { color: '#34D399', bg: 'rgba(52,211,153,0.12)' },
@@ -22,7 +28,17 @@ function toolStyle(tool: string) {
   return { color: c.color, background: c.bg, borderColor: c.color + '55' };
 }
 
-export default function PlanSteps({ steps }: { steps: PlanStep[] }) {
+export default function PlanSteps({
+  steps,
+  activeStepId,
+  stepResults,
+  onRetryStep,
+}: {
+  steps: PlanStep[];
+  activeStepId?: number | null;
+  stepResults?: Record<number, StepResult>;
+  onRetryStep?: (id: number, userMessage: string) => void;
+}) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -65,6 +81,41 @@ export default function PlanSteps({ steps }: { steps: PlanStep[] }) {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Status Indicator */}
+              {activeStepId === step.id && !stepResults?.[step.id] && (
+                <div className={styles.statusIndicator}>
+                  <div className={styles.spinner} />
+                  <span>Executing step...</span>
+                </div>
+              )}
+
+              {/* Result Box */}
+              {stepResults?.[step.id] && (
+                <div className={styles.resultBox}>
+                  {stepResults[step.id].success ? (
+                    <span className={styles.successText}>[Done] {stepResults[step.id].result}</span>
+                  ) : (
+                    <>
+                      <span className={styles.errorText}>[Error] {stepResults[step.id].error}</span>
+                      {onRetryStep && (
+                        <div className={styles.errorInputRow}>
+                          <input
+                            type="text"
+                            className={styles.errorInput}
+                            placeholder="Type a solution..."
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                onRetryStep(step.id, e.currentTarget.value);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>

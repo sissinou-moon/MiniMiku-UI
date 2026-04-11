@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FileTree from './FileTree';
 import PlanSteps from './PlanSteps';
 import { useFileTree } from '@/hooks/useFileTree';
-import type { PlanStep } from './PlanSteps';
+import type { PlanStep, StepResult } from './PlanSteps';
 import styles from './AgentPanel.module.css';
 
 export type { PlanStep };
@@ -14,12 +14,83 @@ interface Props {
   thinking: string;
   steps: PlanStep[];
   onClose: () => void;
+  onPlanAdjustment?: (oldPlan: PlanStep[], errorMsg: string, userMsg: string) => void;
 }
 
-export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose }: Props) {
+export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, onPlanAdjustment }: Props) {
   const [activeTab, setActiveTab] = useState<'process' | 'files'>('process');
   const [selectedPath, setSelectedPath] = useState('');
   const { tree } = useFileTree();
+
+  const [activeStepId, setActiveStepId] = useState<number | null>(null);
+  const [stepResults, setStepResults] = useState<Record<number, StepResult>>({});
+  const [halted, setHalted] = useState(false);
+
+  // When steps array changes completely, reset execution.
+  // Using the first step ID or length to determine a fresh plan.
+  useEffect(() => {
+    setActiveStepId(null);
+    setStepResults({});
+    setHalted(false);
+  }, [steps]);
+
+  // The Background Execution Loop
+  useEffect(() => {
+    if (steps.length === 0 || halted) return;
+
+    // Find the very first step that has no result yet
+    const nextStep = steps.find(s => !stepResults[s.id]);
+    if (!nextStep) return; // All steps finished
+
+    if (activeStepId === nextStep.id) return; // Already inflight
+
+    let mounted = true;
+
+    async function tickStep() {
+      setActiveStepId(nextStep!.id);
+
+      try {
+        const prevId = nextStep!.id > 1 ? nextStep!.id - 1 : null;
+        let prevResultPayload = undefined;
+        if (prevId && stepResults[prevId]) {
+          const prevStep = steps.find(s => s.id === prevId);
+          prevResultPayload = {
+            tool: prevStep?.tool,
+            result: stepResults[prevId].result
+          };
+        }
+
+        const res = await fetch('/api/tools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tool: nextStep!.tool,
+            args: nextStep!.args,
+            current_step: nextStep!.id,
+            previous_step_result: prevResultPayload
+          })
+        });
+
+        const data = await res.json();
+        if (!mounted) return;
+
+        if (data.success) {
+          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result } }));
+        } else {
+          setHalted(true);
+          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error } }));
+        }
+      } catch (err: any) {
+        if (!mounted) return;
+        setHalted(true);
+        setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: err.message } }));
+      }
+    }
+
+    tickStep();
+
+    return () => { mounted = false; };
+  }, [steps, stepResults, activeStepId, halted]);
 
   if (!isOpen) return null;
 
@@ -79,7 +150,17 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             )}
 
             {/* Plan steps */}
-            {steps.length > 0 && <PlanSteps steps={steps} />}
+            {steps.length > 0 && (
+              <PlanSteps
+                steps={steps}
+                activeStepId={activeStepId}
+                stepResults={stepResults}
+                onRetryStep={(id, userMsg) => {
+                  const errStr = stepResults[id]?.error || 'Unknown Error';
+                  onPlanAdjustment?.(steps, errStr, userMsg);
+                }}
+              />
+            )}
 
             {/* Empty state */}
             {!isLoading && !thinking && steps.length === 0 && (
