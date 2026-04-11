@@ -7,6 +7,7 @@ const execAsync = promisify(exec);
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function open_app(args: Record<string, any>) {
+  console.log('[open_app] Starting with args:', args);
   const rawAppName = args.app;
   if (!rawAppName || typeof rawAppName !== 'string') {
     throw new Error("Missing 'app' in args");
@@ -14,32 +15,45 @@ export async function open_app(args: Record<string, any>) {
 
   // Capitalize first letter as requested
   const appName = rawAppName.charAt(0).toUpperCase() + rawAppName.slice(1);
+  console.log('[open_app] Cleaned appName:', appName);
 
   // Pre-check if app is already loaded via tasklist
   try {
+    console.log('[open_app] Running tasklist check...');
     const { stdout } = await execAsync(`tasklist | findstr /i "${appName}"`);
+    console.log('[open_app] Tasklist stdout:', stdout);
     if (stdout.toLowerCase().includes(appName.toLowerCase())) {
+        console.log('[open_app] App already open! Returning.');
         return { success: true, result: appName };
     }
   } catch (err) {
-    // findstr exits with 1 if no match found, which is fine
+    console.log('[open_app] Tasklist check failed / not found. Moving to keyboard automation.');
   }
 
+  console.log('[open_app] Pressing LeftSuper...');
   // Press 'win'
   await keyboard.pressKey(Key.LeftSuper);
   await keyboard.releaseKey(Key.LeftSuper);
+  
+  console.log('[open_app] Waiting 1500ms...');
   await delay(1500); // wait for start menu mapping
 
+  console.log('[open_app] Typing appName...');
   // Type app name
   await keyboard.type(appName);
+  
+  console.log('[open_app] Waiting 1200ms...');
   await delay(1200);
 
+  console.log('[open_app] Pressing Enter...');
   // Press enter
   await keyboard.pressKey(Key.Enter);
   await keyboard.releaseKey(Key.Enter);
 
+  console.log('[open_app] Waiting 3500ms for app to open...');
   await delay(3500); // Wait for the app to open
 
+  console.log('[open_app] Done! Returning success.');
   // Always return success with the App_name so it passes properly to the next tools
   return { success: true, result: appName };
 }

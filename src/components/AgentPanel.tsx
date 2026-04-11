@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import FileTree from './FileTree';
 import PlanSteps from './PlanSteps';
 import { useFileTree } from '@/hooks/useFileTree';
@@ -23,6 +23,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
   const { tree } = useFileTree();
 
   const [activeStepId, setActiveStepId] = useState<number | null>(null);
+  const activeStepIdRef = useRef<number | null>(null);
   const [stepResults, setStepResults] = useState<Record<number, StepResult>>({});
   const [halted, setHalted] = useState(false);
 
@@ -30,6 +31,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
   // Using the first step ID or length to determine a fresh plan.
   useEffect(() => {
     setActiveStepId(null);
+    activeStepIdRef.current = null;
     setStepResults({});
     setHalted(false);
   }, [steps]);
@@ -40,13 +42,16 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
     // Find the very first step that has no result yet
     const nextStep = steps.find(s => !stepResults[s.id]);
-    if (!nextStep) return; // All steps finished
+    if (!nextStep) {
+      activeStepIdRef.current = null;
+      setActiveStepId(null);
+      return; 
+    }
 
-    if (activeStepId === nextStep.id) return; // Already inflight
-
-    let mounted = true;
+    if (activeStepIdRef.current === nextStep.id) return; // Already inflight
 
     async function tickStep() {
+      activeStepIdRef.current = nextStep!.id;
       setActiveStepId(nextStep!.id);
 
       try {
@@ -72,7 +77,9 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
         });
 
         const data = await res.json();
-        if (!mounted) return;
+        
+        // If the execution engine has moved on or reset, abandon this result.
+        if (activeStepIdRef.current !== nextStep!.id) return;
 
         if (data.success) {
           setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result } }));
@@ -81,16 +88,14 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
           setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error } }));
         }
       } catch (err: any) {
-        if (!mounted) return;
+        if (activeStepIdRef.current !== nextStep!.id) return;
         setHalted(true);
         setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: err.message } }));
       }
     }
 
     tickStep();
-
-    return () => { mounted = false; };
-  }, [steps, stepResults, activeStepId, halted]);
+  }, [steps, stepResults, halted]);
 
   if (!isOpen) return null;
 
