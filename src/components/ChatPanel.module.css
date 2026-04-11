@@ -1,0 +1,157 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* ── Messages ─────────────────────────────────────────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl) 0 var(--space-lg);
+}
+
+/* ── Empty state ──────────────────────────────────────── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  gap: var(--space-sm);
+  text-align: center;
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+.emptyLogo {
+  font-size: 36px;
+  margin-bottom: var(--space-md);
+  opacity: 0.15;
+  animation: logo-fade 0.6s ease forwards;
+}
+
+@keyframes logo-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 0.15; transform: translateY(0); }
+}
+
+.emptyTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  animation: slide-up 0.4s ease forwards;
+}
+
+.emptyHint {
+  font-size: 14px;
+  color: var(--text-secondary);
+  animation: slide-up 0.5s ease forwards;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Suggestions ──────────────────────────────────────── */
+.suggestionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-top: var(--space-xl);
+  max-width: 520px;
+  width: 100%;
+  animation: slide-up 0.6s ease forwards;
+}
+
+.suggestion {
+  padding: var(--space-md) var(--space-lg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: left;
+  line-height: 1.4;
+  transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+.suggestion:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Input area ───────────────────────────────────────── */
+.inputArea {
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-2xl) var(--space-lg);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.inputBox {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
+  background: var(--bg);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.inputBox:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+}
+.inputBoxActive:focus-within {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+}
+
+.textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  resize: none;
+  min-height: 24px;
+  max-height: 200px;
+  overflow-y: auto;
+  user-select: text;
+}
+.textarea::placeholder {
+  color: var(--text-disabled);
+}
+
+.sendBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--border);
+  color: var(--text-disabled);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition), transform 80ms;
+}
+.sendBtnActive {
+  background: var(--text);
+  color: #fff;
+}
+.sendBtnActive:hover {
+  background: #222;
+  transform: scale(1.05);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-disabled);
+  text-align: center;
+  margin-top: var(--space-xs);
+}

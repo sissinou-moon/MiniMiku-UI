@@ -1,0 +1,167 @@
+.tabBar {
+  display: flex;
+  align-items: center;
+  height: var(--tab-bar-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  z-index: 100;
+  position: relative;
+}
+
+/* ── Left ────────────────────────────────────────────── */
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm) 0 var(--space-md);
+  min-width: 200px;
+  -webkit-app-region: no-drag;
+}
+
+.sidebarToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+.sidebarToggle:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.appIcon {
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.appTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+/* ── Tabs ────────────────────────────────────────────── */
+.tabs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-app-region: no-drag;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  max-width: 180px;
+  min-width: 80px;
+  transition: background var(--transition), color var(--transition);
+  position: relative;
+}
+.tab:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.tabActive {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-weight: 500;
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-sm);
+}
+
+.tabTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.tabClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition), color var(--transition);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.tab:hover .tabClose,
+.tabActive .tabClose {
+  opacity: 1;
+}
+.tabClose:hover {
+  background: var(--active);
+  color: var(--text);
+}
+
+.addTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.addTab:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* ── Window Controls ─────────────────────────────────── */
+.winControls {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-xs) 0 0;
+  gap: 1px;
+  -webkit-app-region: no-drag;
+}
+
+.winBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+.winBtn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.winClose:hover {
+  background: var(--danger) !important;
+  color: #fff !important;
+}

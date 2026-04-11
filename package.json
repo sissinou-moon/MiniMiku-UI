@@ -1,0 +1,44 @@
+{
+  "name": "notion-electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n \"Next,Electron\" -c \"cyan,magenta\" \"next dev -p 3000\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "build": "next build",
+    "package": "next build && electron-builder",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^16.2.3",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^29.4.6",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.workspace.notion",
+    "productName": "Workspace",
+    "files": [
+      "out/**/*",
+      "electron/**/*",
+      "Workspace/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

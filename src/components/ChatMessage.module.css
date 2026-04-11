@@ -1,0 +1,124 @@
+.wrapper {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-2xl);
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  animation: msg-appear 0.2s ease forwards;
+}
+
+@keyframes msg-appear {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.wrapperUser { flex-direction: row-reverse; }
+
+/* ── Avatar ───────────────────────────────────────────── */
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: var(--space-xs);
+}
+
+.avatarUser {
+  background: var(--text);
+  color: #fff;
+}
+
+.avatarAi {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── Body ─────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 44px);
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+.wrapperUser .meta { flex-direction: row-reverse; }
+
+.role {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.time {
+  font-size: 11px;
+  color: var(--text-disabled);
+}
+
+/* ── Bubble ───────────────────────────────────────────── */
+.bubble {
+  display: inline-block;
+  max-width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+}
+
+.bubbleUser {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+}
+
+.bubbleAi {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+}
+
+.text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.thinkBox {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.thinkBox summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+  opacity: 0.8;
+  margin-bottom: var(--space-xs);
+}
+
+.thinkBox summary:hover {
+  opacity: 1;
+}
+
+.thinkBox .text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

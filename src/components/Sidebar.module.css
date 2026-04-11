@@ -1,0 +1,120 @@
+.sidebar {
+  width: 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 220ms var(--ease);
+  display: flex;
+  flex-direction: column;
+}
+.sidebar.open {
+  width: var(--sidebar-width);
+}
+
+.inner {
+  width: var(--sidebar-width);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-lg) var(--space-md) var(--space-sm);
+  flex-shrink: 0;
+}
+
+.headerIcon {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.headerTitle {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.headerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition), color var(--transition);
+}
+.header:hover .headerBtn {
+  opacity: 1;
+}
+.headerBtn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* ── Section label ───────────────────────────────────── */
+.sectionLabel {
+  padding: var(--space-xs) var(--space-md) var(--space-xs);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-disabled);
+  flex-shrink: 0;
+}
+
+/* ── Tree ────────────────────────────────────────────── */
+.treeContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: var(--space-xl);
+}
+
+/* ── State ───────────────────────────────────────────── */
+.stateBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-md) var(--space-md);
+}
+
+.stateText {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stateHint {
+  font-size: 12px;
+  color: var(--text-disabled);
+  line-height: 1.4;
+}
+
+/* ── Loading dots ────────────────────────────────────── */
+.loadingDots {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.loadingDots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-disabled);
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+.loadingDots span:nth-child(2) { animation-delay: 0.2s; }
+.loadingDots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-pulse {
+  0%, 80%, 100% { transform: scale(1); opacity: 0.4; }
+  40%           { transform: scale(1.4); opacity: 1; }
+}
