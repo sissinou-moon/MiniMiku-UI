@@ -14,13 +14,37 @@ interface Props {
   thinking: string;
   steps: PlanStep[];
   onClose: () => void;
+  setActiveMarkdownDoc?: React.Dispatch<React.SetStateAction<import('./MarkdownPanel').MarkdownDoc | null>>;
   onPlanAdjustment?: (oldPlan: PlanStep[], errorMsg: string, userMsg: string) => void;
 }
 
-export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, onPlanAdjustment }: Props) {
+export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, setActiveMarkdownDoc, onPlanAdjustment }: Props) {
   const [activeTab, setActiveTab] = useState<'process' | 'files'>('process');
   const [selectedPath, setSelectedPath] = useState('');
   const { tree } = useFileTree();
+
+  const handleFileSelect = async (path: string) => {
+    setSelectedPath(path);
+    if (path.endsWith('.md')) {
+      try {
+        const res = await fetch('/api/fs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'read', filePath: path })
+        });
+        const data = await res.json();
+        if (data.success && setActiveMarkdownDoc) {
+          setActiveMarkdownDoc({
+            content: data.content,
+            filePath: path,
+            title: path.split('/').pop() || path
+          });
+        }
+      } catch (e) {
+        console.error('Failed to open md file', e);
+      }
+    }
+  };
 
   const [activeStepId, setActiveStepId] = useState<number | null>(null);
   const activeStepIdRef = useRef<number | null>(null);
@@ -45,7 +69,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
     if (!nextStep) {
       activeStepIdRef.current = null;
       setActiveStepId(null);
-      return; 
+      return;
     }
 
     if (activeStepIdRef.current === nextStep.id) return; // Already inflight
@@ -55,37 +79,117 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
       setActiveStepId(nextStep!.id);
 
       try {
-        const prevId = nextStep!.id > 1 ? nextStep!.id - 1 : null;
-        let prevResultPayload = undefined;
-        if (prevId && stepResults[prevId]) {
-          const prevStep = steps.find(s => s.id === prevId);
-          prevResultPayload = {
-            tool: prevStep?.tool,
-            result: stepResults[prevId].result
-          };
-        }
+        if (nextStep!.tool === 'llm_execution') {
+          const titleAttr = (nextStep!.args.title as string) || 'LLM Output';
+          let promptData = (nextStep!.args.data as string) || '';
+          
+          try {
+            promptData = promptData.replace(/\$(\d+)\.output/g, (match, stepIdStr) => {
+              const sid = parseInt(stepIdStr, 10);
+              if (!stepResults[sid]) throw new Error(`Dependency error: Step ${sid} hasn't completed yet.`);
+              if (!stepResults[sid].success) throw new Error(`Dependency error: Step ${sid} failed. Cannot proceed.`);
+              
+              // We inject the result string directly.
+              let val = stepResults[sid].result;
+              return typeof val === 'string' ? val : JSON.stringify(val);
+            });
+          } catch (e: any) {
+            setHalted(true);
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message } }));
+            return;
+          }
 
-        const res = await fetch('/api/tools', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tool: nextStep!.tool,
-            args: nextStep!.args,
-            current_step: nextStep!.id,
-            previous_step_result: prevResultPayload
-          })
-        });
+          setActiveMarkdownDoc?.({ content: '', title: titleAttr });
 
-        const data = await res.json();
-        
-        // If the execution engine has moved on or reset, abandon this result.
-        if (activeStepIdRef.current !== nextStep!.id) return;
+          const apiUrl = process.env.NEXT_PUBLIC_LLM_API_URL || 'http://localhost:8000/llm/text';
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: promptData })
+          });
 
-        if (data.success) {
-          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result } }));
+          if (!res.body) throw new Error('No body in response');
+          
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let fullContent = '';
+          let fullThink = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop() || '';
+
+            let newThink = '';
+            let newContent = '';
+
+            for (const part of parts) {
+              if (!part.trim()) continue;
+              const lines = part.split('\n');
+              let event = '';
+              let dataLines: string[] = [];
+
+              for (const line of lines) {
+                if (line.startsWith('event: ')) event = line.substring(7).trim();
+                else if (line.startsWith('data: ')) dataLines.push(line.substring(6));
+                else if (line.startsWith('data:')) dataLines.push(line.substring(5));
+              }
+
+              const data = dataLines.join('\n');
+              if (event === 'think') newThink += data;
+              else if (event === 'content' || (!event && dataLines.length > 0)) newContent += data;
+            }
+
+            if (newThink) {
+              fullThink += newThink;
+              setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink } }));
+            }
+
+            if (newContent) {
+              fullContent += newContent;
+              setActiveMarkdownDoc?.(prev => prev ? { ...prev, content: fullContent } : { content: fullContent, title: titleAttr });
+            }
+          }
+
+          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink } }));
+
         } else {
-          setHalted(true);
-          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error } }));
+          // Standard tool execution
+          const prevId = nextStep!.id > 1 ? nextStep!.id - 1 : null;
+          let prevResultPayload = undefined;
+          if (prevId && stepResults[prevId]) {
+            const prevStep = steps.find(s => s.id === prevId);
+            prevResultPayload = {
+              tool: prevStep?.tool,
+              result: stepResults[prevId].result
+            };
+          }
+
+          const res = await fetch('/api/tools', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool: nextStep!.tool,
+              args: nextStep!.args,
+              current_step: nextStep!.id,
+              previous_step_result: prevResultPayload
+            })
+          });
+
+          const data = await res.json();
+
+          if (activeStepIdRef.current !== nextStep!.id) return;
+
+          if (data.success) {
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result } }));
+          } else {
+            setHalted(true);
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error } }));
+          }
         }
       } catch (err: any) {
         if (activeStepIdRef.current !== nextStep!.id) return;
@@ -186,7 +290,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
                 node={node}
                 depth={0}
                 selectedPath={selectedPath}
-                onSelect={setSelectedPath}
+                onSelect={handleFileSelect}
               />
             ))}
           </div>

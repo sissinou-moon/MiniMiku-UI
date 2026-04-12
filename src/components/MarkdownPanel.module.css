@@ -1,0 +1,57 @@
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--borderExt, #333);
+  background: var(--bgLayer1, #1e1e1e);
+  overflow: hidden;
+}
+
+.topBar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bgLayer2, #252526);
+  border-bottom: 1px solid var(--borderExt, #333);
+}
+
+.title {
+  font-size: 14px;
+  color: var(--textSecondary, #ccc);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--textSecondary, #aaa);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--textMain, #fff);
+}
+
+.editorContainer {
+  flex: 1;
+  overflow: auto;
+  background: #0d1117; /* GitHub dark mode background for the editor */
+}

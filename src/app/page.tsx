@@ -4,6 +4,7 @@ import TabBar from '@/components/TabBar';
 import Sidebar from '@/components/Sidebar';
 import ChatPanel from '@/components/ChatPanel';
 import AgentPanel, { type PlanStep } from '@/components/AgentPanel';
+import MarkdownPanel, { type MarkdownDoc } from '@/components/MarkdownPanel';
 import type { Message } from '@/components/ChatPanel';
 import styles from './page.module.css';
 
@@ -39,6 +40,9 @@ export default function Home() {
   const [agentLoading, setAgentLoading]     = useState(false);
   const [agentThinking, setAgentThinking]   = useState('');
   const [agentSteps, setAgentSteps]         = useState<PlanStep[]>([]);
+
+  // Markdown Panel state
+  const [activeMarkdownDoc, setActiveMarkdownDoc] = useState<MarkdownDoc | null>(null);
 
   const tabs = tabsData.map((td) => td.tab);
   const active = tabsData.find((td) => td.tab.id === activeTabId);
@@ -314,6 +318,13 @@ export default function Home() {
               tabTitle={active.tab.title}
             />
           )}
+          {activeMarkdownDoc && (
+            <MarkdownPanel
+              doc={activeMarkdownDoc}
+              onChange={(content) => setActiveMarkdownDoc(prev => prev ? { ...prev, content } : null)}
+              onClose={() => setActiveMarkdownDoc(null)}
+            />
+          )}
         </main>
         <AgentPanel
           isOpen={agentPanelOpen}
@@ -321,6 +332,7 @@ export default function Home() {
           thinking={agentThinking}
           steps={agentSteps}
           onClose={() => setAgentPanelOpen(false)}
+          setActiveMarkdownDoc={setActiveMarkdownDoc}
           onPlanAdjustment={(oldPlan, errorMsg, userMsg) => {
             const prompt = `CAN YOU ADJUST THE OLD PLAN WITH THE ERROR AND USER MESSAGE:\nError: ${errorMsg}\nMessage: ${userMsg}\nOld Plan: ${JSON.stringify(oldPlan)}`;
             fetchPlanStream(prompt);

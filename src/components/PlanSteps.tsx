@@ -11,8 +11,9 @@ export interface PlanStep {
 
 export interface StepResult {
   success: boolean;
-  result: string;
+  result: any;
   error?: string;
+  think?: string;
 }
 
 const TOOL_COLORS: Record<string, { color: string; bg: string }> = {
@@ -140,6 +141,19 @@ export default function PlanSteps({
                         </button>
                       </div>
                       <div className={styles.resultContent}>
+                        {stepResults[step.id].think && (
+                          <details className={styles.thinkBoxLocal} style={{ marginBottom: '8px' }}>
+                            <summary style={{ cursor: 'pointer', color: '#888', fontSize: '13px' }}>
+                              <span>Thinking Process</span>
+                              <span style={{ marginLeft: '8px', opacity: 0.7 }}>
+                                {stepResults[step.id].think?.split(' ').length} tokens
+                              </span>
+                            </summary>
+                            <div style={{ marginTop: '4px', fontSize: '13px', color: '#ccc', whiteSpace: 'pre-wrap' }}>
+                              {stepResults[step.id].think}
+                            </div>
+                          </details>
+                        )}
                         {Array.isArray(stepResults[step.id].result) ? (
                           <div className={styles.searchResults}>
                             {(stepResults[step.id].result as any[]).map((res, i) => (
