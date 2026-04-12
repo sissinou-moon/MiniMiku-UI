@@ -26,6 +26,7 @@ interface Props {
   doc: MarkdownDoc;
   onChange: (newContent: string) => void;
   onClose: () => void;
+  onSave?: () => void;
 }
 
 // ── Converters (singleton) ─────────────────────────────────
@@ -76,9 +77,21 @@ htmlToMd.addRule('taskListItem', {
   },
 });
 
-export default function MarkdownPanel({ doc, onChange, onClose }: Props) {
+export default function MarkdownPanel({ doc, onChange, onClose, onSave }: Props) {
   const lastExternalContent = useRef(doc.content);
   const isInternalUpdate = useRef(false);
+
+  // CTRL+S to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        onSave?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onSave]);
 
   const editor = useEditor({
     immediatelyRender: false,

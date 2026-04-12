@@ -15,6 +15,7 @@ interface TabData {
   type: 'chat' | 'file';
   messages: Message[];
   doc?: MarkdownDoc;
+  originalContent?: string; // tracks saved state for dirty detection
 }
 
 /* ── Tab factory ───────────────────────────────────────────────────────────── */
@@ -31,24 +32,28 @@ function makeTab(n: number): TabData {
 /* ── Root page ─────────────────────────────────────────────────────────────── */
 export default function Home() {
   const counter = useRef(1);
-  const [tabsData, setTabsData]       = useState<TabData[]>(() => [makeTab(1)]);
+  const [tabsData, setTabsData] = useState<TabData[]>(() => [makeTab(1)]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-1');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Agent / Planning panel state
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
-  const [agentLoading, setAgentLoading]     = useState(false);
-  const [agentThinking, setAgentThinking]   = useState('');
-  const [agentSteps, setAgentSteps]         = useState<PlanStep[]>([]);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentThinking, setAgentThinking] = useState('');
+  const [agentSteps, setAgentSteps] = useState<PlanStep[]>([]);
 
   const active = tabsData.find((td) => td.id === activeTabId);
 
-  // Helper to update active markdown doc
+  // Helper to update active markdown doc content
   const handleSetActiveMarkdownDoc = useCallback((val: any) => {
     setTabsData(prev => prev.map(td => {
       if (td.id !== activeTabId || td.type !== 'file' || !td.doc) return td;
+      // val can be a string (from onChange) or a doc object (from LLM streaming)
+      if (typeof val === 'string') {
+        return { ...td, doc: { ...td.doc, content: val } };
+      }
       const nextDoc = typeof val === 'function' ? val(td.doc) : val;
-      return { ...td, doc: nextDoc, title: nextDoc.title || nextDoc.filePath?.split('/').pop() || td.title };
+      return { ...td, doc: { ...td.doc, ...nextDoc } };
     }));
   }, [activeTabId]);
 
@@ -62,6 +67,7 @@ export default function Home() {
 
   const handleCloseTab = useCallback((id: string) => {
     setTabsData((prev) => {
+      const idx = prev.findIndex((td) => td.id === id);
       const next = prev.filter((td) => td.id !== id);
       if (next.length === 0) {
         counter.current += 1;
@@ -70,7 +76,9 @@ export default function Home() {
         return [td];
       }
       if (id === activeTabId) {
-        setActiveTabId(next[next.length - 1].id);
+        // Pick the tab that was next to the closed one
+        const newIdx = Math.min(idx, next.length - 1);
+        setActiveTabId(next[newIdx].id);
       }
       return next;
     });
@@ -83,7 +91,7 @@ export default function Home() {
     setAgentLoading(true);
     setAgentThinking('');
     setAgentSteps([]);
-    
+
     try {
       const res = await fetch('http://localhost:8000/llm/json/plan', {
         method: 'POST',
@@ -187,17 +195,17 @@ export default function Home() {
     const fetchStream = async () => {
       try {
         const response = await fetch(apiUrl, {
-          method: 'POST', 
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: content }) 
+          body: JSON.stringify({ prompt: content })
         });
-        
+
         if (!response.body) return;
-        
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        
+
         let fullMsgContent = '';
         let isPlanningTriggered = false;
 
@@ -205,22 +213,22 @@ export default function Home() {
           const { done, value } = await reader.read();
           if (done) {
             if (isPlanningTriggered) {
-                let promptPayload = content;
-                try {
-                  const m = fullMsgContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-                  if (m) {
-                    const parsed = JSON.parse(m[1]);
-                    if (parsed.prompt) promptPayload = parsed.prompt;
-                  } else {
-                     const pMatch = fullMsgContent.match(/"prompt"\s*:\s*"((?:[^"\\]|\\.)*)/);
-                     if (pMatch) promptPayload = pMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                  }
-                } catch {}
-                fetchPlanStream(promptPayload);
+              let promptPayload = content;
+              try {
+                const m = fullMsgContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+                if (m) {
+                  const parsed = JSON.parse(m[1]);
+                  if (parsed.prompt) promptPayload = parsed.prompt;
+                } else {
+                  const pMatch = fullMsgContent.match(/"prompt"\s*:\s*"((?:[^"\\]|\\.)*)/);
+                  if (pMatch) promptPayload = pMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                }
+              } catch { }
+              fetchPlanStream(promptPayload);
             }
             break;
           }
-          
+
           buffer += decoder.decode(value, { stream: true });
           const parts = buffer.split('\n\n');
           buffer = parts.pop() || '';
@@ -247,9 +255,9 @@ export default function Home() {
             const data = dataLines.join('\n');
 
             if (event === 'think') {
-               newThink += data;
+              newThink += data;
             } else if (event === 'content' || (!event && dataLines.length > 0)) {
-               newContent += data;
+              newContent += data;
             }
           }
 
@@ -280,7 +288,7 @@ export default function Home() {
                 if (td.id !== activeTabId) return td;
                 const msgIdx = td.messages.findIndex(m => m.id === aiMsgId);
                 if (msgIdx === -1) return td;
-                
+
                 const msgs = [...td.messages];
                 const m = msgs[msgIdx];
                 msgs[msgIdx] = {
@@ -297,7 +305,7 @@ export default function Home() {
         console.error("Stream error: ", err);
       }
     };
-    
+
     fetchStream();
   }, [activeTabId]);
 
@@ -335,8 +343,14 @@ export default function Home() {
         })
       });
       const data = await res.json();
-      if (!data.success) alert(`Failed to save: ${data.error}`);
-      else alert(`Saved ${targetPath} successfully!`);
+      if (!data.success) {
+        alert(`Failed to save: ${data.error}`);
+      } else {
+        // Mark as saved — clear dirty state
+        setTabsData(prev => prev.map(td =>
+          td.id === active.id ? { ...td, originalContent: content } : td
+        ));
+      }
     } catch (err) {
       alert('Error saving to workspace');
     }
@@ -344,8 +358,13 @@ export default function Home() {
 
   const handleFileSelect = useCallback(async (path: string) => {
     if (path.endsWith('.md')) {
+      // Strip everything up to and including "Workspace/" or "Workspace\" 
+      // Handles both full Windows paths (C:\...\Workspace\file.md) and mock paths (/Workspace/file.md)
+      const cleanPath = path.replace(/^.*Workspace[\\/]/, '');
+      const fileName = cleanPath.split(/[\\/]/).pop() || cleanPath;
+
       // Check if file is already open
-      const existing = tabsData.find(td => td.type === 'file' && td.doc?.filePath === path);
+      const existing = tabsData.find(td => td.type === 'file' && td.doc?.filePath === cleanPath);
       if (existing) {
         setActiveTabId(existing.id);
         return;
@@ -355,22 +374,22 @@ export default function Home() {
         const res = await fetch('/api/fs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'read', filePath: path })
+          body: JSON.stringify({ action: 'read', filePath: cleanPath })
         });
         const data = await res.json();
         if (data.success) {
           const newId = `file-${Date.now()}`;
-          const title = path.split('/').pop() || path;
           setTabsData(prev => [...prev, {
-             id: newId,
-             title,
-             type: 'file',
-             messages: [],
-             doc: {
-                content: data.content,
-                filePath: path,
-                title
-             }
+            id: newId,
+            title: fileName,
+            type: 'file',
+            messages: [],
+            doc: {
+              content: data.content,
+              filePath: cleanPath,
+              title: fileName
+            },
+            originalContent: data.content
           }]);
           setActiveTabId(newId);
         }
@@ -383,10 +402,10 @@ export default function Home() {
   // Special case for LLM execution adding a doc tab
   const addDocTabFromLLM = useCallback((doc: MarkdownDoc) => {
     const title = doc.title || 'LLM Output.md';
-    
+
     setTabsData(prev => {
       const existingIdx = prev.findIndex(td => td.type === 'file' && td.title === title && !td.doc?.filePath);
-      
+
       if (existingIdx !== -1) {
         const next = [...prev];
         next[existingIdx] = { ...next[existingIdx], doc: { ...next[existingIdx].doc, ...doc } };
@@ -398,11 +417,11 @@ export default function Home() {
       const newId = `file-${Date.now()}`;
       setTimeout(() => setActiveTabId(newId), 0);
       return [...prev, {
-         id: newId,
-         title,
-         type: 'file',
-         messages: [],
-         doc: { ...doc, title }
+        id: newId,
+        title,
+        type: 'file',
+        messages: [],
+        doc: { ...doc, title }
       }];
     });
   }, []);
@@ -410,7 +429,12 @@ export default function Home() {
   return (
     <div className={styles.app}>
       <TabBar
-        tabs={tabsData.map(td => ({ id: td.id, title: td.title, type: td.type }))}
+        tabs={tabsData.map(td => ({
+          id: td.id,
+          title: td.title,
+          type: td.type,
+          isDirty: td.type === 'file' && td.doc != null && td.doc.content !== td.originalContent
+        }))}
         activeTabId={activeTabId}
         onTabSelect={setActiveTabId}
         onTabClose={handleCloseTab}
@@ -439,6 +463,7 @@ export default function Home() {
               doc={active.doc}
               onChange={handleSetActiveMarkdownDoc}
               onClose={() => handleCloseTab(active.id)}
+              onSave={handleSaveMarkdown}
             />
           )}
         </main>

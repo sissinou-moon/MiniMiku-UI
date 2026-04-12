@@ -5,6 +5,7 @@ interface Tab {
   id: string;
   title: string;
   type: 'chat' | 'file';
+  isDirty?: boolean;
 }
 
 interface Props {
@@ -30,7 +31,7 @@ export default function TabBar({
 }: Props) {
   const handleMinimize = () => window.electronAPI?.minimize();
   const handleMaximize = () => window.electronAPI?.maximize();
-  const handleClose    = () => window.electronAPI?.close();
+  const handleClose = () => window.electronAPI?.close();
 
   return (
     <header className={styles.tabBar}>
@@ -63,8 +64,11 @@ export default function TabBar({
             aria-selected={tab.id === activeTabId}
           >
             {tab.type === 'chat' ? <ChatIcon /> : <DocIcon />}
-            <span className={styles.tabTitle}>{tab.title}</span>
-            
+            <span className={styles.tabTitle}>
+              {tab.title}
+              {tab.isDirty && <span className={styles.dirtyDot} title="Unsaved changes" />}
+            </span>
+
             {/* If it's the active file tab, show Save/Download actions */}
             {tab.id === activeTabId && tab.type === 'file' && activeDoc && (
               <div className={styles.docActions}>
@@ -120,8 +124,8 @@ export default function TabBar({
 function SidebarIcon({ open }: { open: boolean }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-      <line x1={open ? '5' : '11'} y1="2" x2={open ? '5' : '11'} y2="14" stroke="currentColor" strokeWidth="1.2"/>
+      <rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      <line x1={open ? '5' : '11'} y1="2" x2={open ? '5' : '11'} y2="14" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   );
 }
@@ -129,7 +133,7 @@ function SidebarIcon({ open }: { open: boolean }) {
 function ChatIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
-      <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V3Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V3Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -167,16 +171,16 @@ function SaveIcon() {
 }
 
 function WinMinimize() {
-  return <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="5" width="9" height="1.2" rx="0.6" fill="currentColor"/></svg>;
+  return <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="5" width="9" height="1.2" rx="0.6" fill="currentColor" /></svg>;
 }
 function WinMaximize() {
-  return <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/></svg>;
+  return <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="1" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" /></svg>;
 }
 function WinClose() {
   return (
     <svg width="11" height="11" viewBox="0 0 11 11">
-      <line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-      <line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="1.5" y1="1.5" x2="9.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <line x1="9.5" y1="1.5" x2="1.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
