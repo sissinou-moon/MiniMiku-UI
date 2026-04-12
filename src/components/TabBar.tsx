@@ -4,6 +4,7 @@ import styles from './TabBar.module.css';
 interface Tab {
   id: string;
   title: string;
+  type: 'chat' | 'file';
 }
 
 interface Props {
@@ -52,7 +53,7 @@ export default function TabBar({
       </div>
 
       {/* ── Center: Tabs ────────────────────────────────── */}
-      <nav className={styles.tabs} aria-label="Open chats">
+      <nav className={styles.tabs} aria-label="Open tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -61,18 +62,29 @@ export default function TabBar({
             onClick={() => onTabSelect(tab.id)}
             aria-selected={tab.id === activeTabId}
           >
-            <ChatIcon />
+            {tab.type === 'chat' ? <ChatIcon /> : <DocIcon />}
             <span className={styles.tabTitle}>{tab.title}</span>
-            {tabs.length > 1 && (
-              <span
-                className={styles.tabClose}
-                role="button"
-                aria-label={`Close ${tab.title}`}
-                onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
-              >
-                ×
-              </span>
+            
+            {/* If it's the active file tab, show Save/Download actions */}
+            {tab.id === activeTabId && tab.type === 'file' && activeDoc && (
+              <div className={styles.docActions}>
+                <span className={styles.docActionBtn} onClick={(e) => { e.stopPropagation(); activeDoc.onDownload(); }} title="Download">
+                  <DownloadIcon />
+                </span>
+                <span className={styles.docActionBtn} onClick={(e) => { e.stopPropagation(); activeDoc.onSave(); }} title="Save">
+                  <SaveIcon />
+                </span>
+              </div>
             )}
+
+            <span
+              className={styles.tabClose}
+              role="button"
+              aria-label={`Close ${tab.title}`}
+              onClick={(e) => { e.stopPropagation(); onTabClose(tab.id); }}
+            >
+              ×
+            </span>
           </button>
         ))}
 
@@ -85,24 +97,6 @@ export default function TabBar({
         >
           +
         </button>
-
-        {activeDoc && (
-          <div 
-            className={`${styles.tab} ${activeTabId === 'doc' ? styles.tabActive : ''} ${styles.docTab}`}
-            onClick={() => onTabSelect('doc')}
-          >
-            <DocIcon />
-            <span className={styles.tabTitle}>{activeDoc.title}</span>
-            <div className={styles.docActions}>
-              <button className={styles.docActionBtn} onClick={(e) => { e.stopPropagation(); activeDoc.onDownload(); }} title="Download to PC">
-                <DownloadIcon />
-              </button>
-              <button className={styles.docActionBtn} onClick={(e) => { e.stopPropagation(); activeDoc.onSave(); }} title="Save to Workspace">
-                <SaveIcon />
-              </button>
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* ── Right: Window Controls ──────────────────────── */}

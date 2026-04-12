@@ -9,20 +9,20 @@ import type { Message } from '@/components/ChatPanel';
 import styles from './page.module.css';
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
-interface Tab {
+interface TabData {
   id: string;
   title: string;
-}
-
-interface TabData {
-  tab: Tab;
+  type: 'chat' | 'file';
   messages: Message[];
+  doc?: MarkdownDoc;
 }
 
 /* ── Tab factory ───────────────────────────────────────────────────────────── */
 function makeTab(n: number): TabData {
   return {
-    tab: { id: `tab-${n}`, title: `Chat ${n}` },
+    id: `tab-${n}`,
+    title: `Chat ${n}`,
+    type: 'chat',
     messages: [],
   };
 }
@@ -41,42 +41,36 @@ export default function Home() {
   const [agentThinking, setAgentThinking]   = useState('');
   const [agentSteps, setAgentSteps]         = useState<PlanStep[]>([]);
 
-  // Markdown Panel state
-  const [activeMarkdownDoc, setActiveMarkdownDoc] = useState<MarkdownDoc | null>(null);
+  const active = tabsData.find((td) => td.id === activeTabId);
 
-  const handleSetActiveMarkdownDoc: React.Dispatch<React.SetStateAction<MarkdownDoc | null>> = useCallback((val) => {
-    setActiveMarkdownDoc((prev) => {
-      const next = typeof val === 'function' ? val(prev) : val;
-      if (next) {
-        // Defer setting activeTabId to 'doc' so state updates sequentially
-        setTimeout(() => setActiveTabId('doc'), 0);
-      }
-      return next;
-    });
-  }, []);
-
-  const tabs = tabsData.map((td) => td.tab);
-  const active = tabsData.find((td) => td.tab.id === activeTabId);
+  // Helper to update active markdown doc
+  const handleSetActiveMarkdownDoc = useCallback((val: any) => {
+    setTabsData(prev => prev.map(td => {
+      if (td.id !== activeTabId || td.type !== 'file' || !td.doc) return td;
+      const nextDoc = typeof val === 'function' ? val(td.doc) : val;
+      return { ...td, doc: nextDoc, title: nextDoc.title || nextDoc.filePath?.split('/').pop() || td.title };
+    }));
+  }, [activeTabId]);
 
   /* ── Tab actions ─────────────────────────────────── */
   const handleAddTab = useCallback(() => {
     counter.current += 1;
     const td = makeTab(counter.current);
     setTabsData((prev) => [...prev, td]);
-    setActiveTabId(td.tab.id);
+    setActiveTabId(td.id);
   }, []);
 
   const handleCloseTab = useCallback((id: string) => {
     setTabsData((prev) => {
-      const next = prev.filter((td) => td.tab.id !== id);
+      const next = prev.filter((td) => td.id !== id);
       if (next.length === 0) {
         counter.current += 1;
         const td = makeTab(counter.current);
-        setActiveTabId(td.tab.id);
+        setActiveTabId(td.id);
         return [td];
       }
       if (id === activeTabId) {
-        setActiveTabId(next[next.length - 1].tab.id);
+        setActiveTabId(next[next.length - 1].id);
       }
       return next;
     });
@@ -167,7 +161,7 @@ export default function Home() {
 
     setTabsData((prev) =>
       prev.map((td) =>
-        td.tab.id !== activeTabId
+        td.id !== activeTabId
           ? td
           : { ...td, messages: [...td.messages, userMsg] }
       )
@@ -184,7 +178,7 @@ export default function Home() {
 
     setTabsData((prev) =>
       prev.map((td) =>
-        td.tab.id !== activeTabId
+        td.id !== activeTabId
           ? td
           : { ...td, messages: [...td.messages, aiMsg] }
       )
@@ -270,7 +264,7 @@ export default function Home() {
 
             setTabsData((prev) =>
               prev.map((td) => {
-                if (td.tab.id !== activeTabId) return td;
+                if (td.id !== activeTabId) return td;
                 const msgIdx = td.messages.findIndex(m => m.id === aiMsgId);
                 if (msgIdx === -1) return td;
                 const msgs = [...td.messages];
@@ -283,7 +277,7 @@ export default function Home() {
           if (newContent || newThink) {
             setTabsData((prev) =>
               prev.map((td) => {
-                if (td.tab.id !== activeTabId) return td;
+                if (td.id !== activeTabId) return td;
                 const msgIdx = td.messages.findIndex(m => m.id === aiMsgId);
                 if (msgIdx === -1) return td;
                 
@@ -309,8 +303,8 @@ export default function Home() {
 
   /* ── Markdown Actions ────────────────────────────── */
   const handleDownloadMarkdown = useCallback(() => {
-    if (!activeMarkdownDoc) return;
-    const { content, title, filePath } = activeMarkdownDoc;
+    if (!active || active.type !== 'file' || !active.doc) return;
+    const { content, title, filePath } = active.doc;
     const displayTitle = title || (filePath ? filePath.split('/').pop() : 'Untitled.md');
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -319,11 +313,11 @@ export default function Home() {
     a.download = displayTitle!.endsWith('.md') ? displayTitle! : `${displayTitle}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [activeMarkdownDoc]);
+  }, [active]);
 
   const handleSaveMarkdown = useCallback(async () => {
-    if (!activeMarkdownDoc) return;
-    const { content, title, filePath } = activeMarkdownDoc;
+    if (!active || active.type !== 'file' || !active.doc) return;
+    const { content, title, filePath } = active.doc;
     let targetPath = filePath;
     if (!targetPath) {
       const displayTitle = title || 'Untitled.md';
@@ -346,43 +340,105 @@ export default function Home() {
     } catch (err) {
       alert('Error saving to workspace');
     }
-  }, [activeMarkdownDoc]);
+  }, [active]);
+
+  const handleFileSelect = useCallback(async (path: string) => {
+    if (path.endsWith('.md')) {
+      // Check if file is already open
+      const existing = tabsData.find(td => td.type === 'file' && td.doc?.filePath === path);
+      if (existing) {
+        setActiveTabId(existing.id);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/fs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'read', filePath: path })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const newId = `file-${Date.now()}`;
+          const title = path.split('/').pop() || path;
+          setTabsData(prev => [...prev, {
+             id: newId,
+             title,
+             type: 'file',
+             messages: [],
+             doc: {
+                content: data.content,
+                filePath: path,
+                title
+             }
+          }]);
+          setActiveTabId(newId);
+        }
+      } catch (e) {
+        console.error('Failed to open md file', e);
+      }
+    }
+  }, [tabsData]);
+
+  // Special case for LLM execution adding a doc tab
+  const addDocTabFromLLM = useCallback((doc: MarkdownDoc) => {
+    const title = doc.title || 'LLM Output.md';
+    
+    setTabsData(prev => {
+      const existingIdx = prev.findIndex(td => td.type === 'file' && td.title === title && !td.doc?.filePath);
+      
+      if (existingIdx !== -1) {
+        const next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], doc: { ...next[existingIdx].doc, ...doc } };
+        // Defer activation to ensure state settles
+        setTimeout(() => setActiveTabId(next[existingIdx].id), 0);
+        return next;
+      }
+
+      const newId = `file-${Date.now()}`;
+      setTimeout(() => setActiveTabId(newId), 0);
+      return [...prev, {
+         id: newId,
+         title,
+         type: 'file',
+         messages: [],
+         doc: { ...doc, title }
+      }];
+    });
+  }, []);
 
   return (
     <div className={styles.app}>
       <TabBar
-        tabs={tabs}
+        tabs={tabsData.map(td => ({ id: td.id, title: td.title, type: td.type }))}
         activeTabId={activeTabId}
         onTabSelect={setActiveTabId}
         onTabClose={handleCloseTab}
         onTabAdd={handleAddTab}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen((o) => !o)}
-        activeDoc={activeMarkdownDoc ? {
-          title: activeMarkdownDoc.title || activeMarkdownDoc.filePath?.split('/').pop() || 'Untitled.md',
+        activeDoc={active?.type === 'file' && active.doc ? {
+          title: active.doc.title || active.doc.filePath?.split('/').pop() || 'Untitled.md',
           onDownload: handleDownloadMarkdown,
           onSave: handleSaveMarkdown
         } : null}
       />
       <div className={styles.body}>
-        <Sidebar open={sidebarOpen} />
+        <Sidebar open={sidebarOpen} onSelectFile={handleFileSelect} />
         <main className={styles.main}>
-          {activeTabId !== 'doc' && active && (
+          {active?.type === 'chat' && (
             <ChatPanel
-              key={active.tab.id}
+              key={active.id}
               messages={active.messages}
               onSend={handleSend}
-              tabTitle={active.tab.title}
+              tabTitle={active.title}
             />
           )}
-          {activeTabId === 'doc' && activeMarkdownDoc && (
+          {active?.type === 'file' && active.doc && (
             <MarkdownPanel
-              doc={activeMarkdownDoc}
-              onChange={(content) => setActiveMarkdownDoc(prev => prev ? { ...prev, content } : null)}
-              onClose={() => {
-                setActiveMarkdownDoc(null);
-                setActiveTabId(tabsData[0].tab.id);
-              }}
+              doc={active.doc}
+              onChange={handleSetActiveMarkdownDoc}
+              onClose={() => handleCloseTab(active.id)}
             />
           )}
         </main>
@@ -392,7 +448,8 @@ export default function Home() {
           thinking={agentThinking}
           steps={agentSteps}
           onClose={() => setAgentPanelOpen(false)}
-          setActiveMarkdownDoc={handleSetActiveMarkdownDoc}
+          setActiveMarkdownDoc={addDocTabFromLLM}
+          onSelectFile={handleFileSelect}
           onPlanAdjustment={(oldPlan, errorMsg, userMsg) => {
             const prompt = `CAN YOU ADJUST THE OLD PLAN WITH THE ERROR AND USER MESSAGE:\nError: ${errorMsg}\nMessage: ${userMsg}\nOld Plan: ${JSON.stringify(oldPlan)}`;
             fetchPlanStream(prompt);

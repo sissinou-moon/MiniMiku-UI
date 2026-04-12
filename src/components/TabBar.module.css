@@ -73,8 +73,8 @@
   font-weight: 400;
   color: var(--text-secondary);
   white-space: nowrap;
-  max-width: 180px;
-  min-width: 80px;
+  max-width: 200px;
+  min-width: 60px;
   transition: background var(--transition), color var(--transition);
   position: relative;
 }
@@ -166,33 +166,26 @@
   color: #fff !important;
 }
 
-/* ── Doc Tab ────────────────────────────────────────── */
-.docTab {
-  margin-left: 20px;
-  background: var(--bg) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border);
-  gap: 10px;
-  max-width: 250px;
-}
-
+/* ── Doc Actions ───────────────────────────────────── */
 .docActions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  margin-right: 2px;
 }
 
 .docActionBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 3px;
   color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
 }
 
 .docActionBtn:hover {
-  background: var(--hover);
+  background: var(--active);
   color: var(--text);
 }

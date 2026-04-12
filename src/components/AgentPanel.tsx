@@ -14,8 +14,9 @@ interface Props {
   thinking: string;
   steps: PlanStep[];
   onClose: () => void;
-  setActiveMarkdownDoc?: React.Dispatch<React.SetStateAction<import('./MarkdownPanel').MarkdownDoc | null>>;
+  setActiveMarkdownDoc?: (doc: import('./MarkdownPanel').MarkdownDoc) => void;
   onPlanAdjustment?: (oldPlan: PlanStep[], errorMsg: string, userMsg: string) => void;
+  onSelectFile?: (path: string) => void;
 }
 
 export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, setActiveMarkdownDoc, onPlanAdjustment }: Props) {
@@ -25,6 +26,11 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
   const handleFileSelect = async (path: string) => {
     setSelectedPath(path);
+    if (onSelectFile) {
+       onSelectFile(path);
+       return;
+    }
+    // Fallback if no centralized handler
     if (path.endsWith('.md')) {
       try {
         const res = await fetch('/api/fs', {
@@ -151,7 +157,10 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
             if (newContent) {
               fullContent += newContent;
-              setActiveMarkdownDoc?.(prev => prev ? { ...prev, content: fullContent } : { content: fullContent, title: titleAttr });
+              // For streaming, we might still want a "current doc" updater, 
+              // but given the tabbed refactor, we'll need to update the tab's content.
+              // For now, call the setter with the full content.
+              setActiveMarkdownDoc?.({ content: fullContent, title: titleAttr });
             }
           }
 
