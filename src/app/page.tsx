@@ -44,6 +44,17 @@ export default function Home() {
   // Markdown Panel state
   const [activeMarkdownDoc, setActiveMarkdownDoc] = useState<MarkdownDoc | null>(null);
 
+  const handleSetActiveMarkdownDoc: React.Dispatch<React.SetStateAction<MarkdownDoc | null>> = useCallback((val) => {
+    setActiveMarkdownDoc((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next) {
+        // Defer setting activeTabId to 'doc' so state updates sequentially
+        setTimeout(() => setActiveTabId('doc'), 0);
+      }
+      return next;
+    });
+  }, []);
+
   const tabs = tabsData.map((td) => td.tab);
   const active = tabsData.find((td) => td.tab.id === activeTabId);
 
@@ -296,6 +307,47 @@ export default function Home() {
     fetchStream();
   }, [activeTabId]);
 
+  /* ── Markdown Actions ────────────────────────────── */
+  const handleDownloadMarkdown = useCallback(() => {
+    if (!activeMarkdownDoc) return;
+    const { content, title, filePath } = activeMarkdownDoc;
+    const displayTitle = title || (filePath ? filePath.split('/').pop() : 'Untitled.md');
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = displayTitle!.endsWith('.md') ? displayTitle! : `${displayTitle}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [activeMarkdownDoc]);
+
+  const handleSaveMarkdown = useCallback(async () => {
+    if (!activeMarkdownDoc) return;
+    const { content, title, filePath } = activeMarkdownDoc;
+    let targetPath = filePath;
+    if (!targetPath) {
+      const displayTitle = title || 'Untitled.md';
+      targetPath = displayTitle.endsWith('.md') ? displayTitle : `${displayTitle}.md`;
+    }
+
+    try {
+      const res = await fetch('/api/fs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save',
+          filePath: targetPath,
+          content,
+        })
+      });
+      const data = await res.json();
+      if (!data.success) alert(`Failed to save: ${data.error}`);
+      else alert(`Saved ${targetPath} successfully!`);
+    } catch (err) {
+      alert('Error saving to workspace');
+    }
+  }, [activeMarkdownDoc]);
+
   return (
     <div className={styles.app}>
       <TabBar
@@ -306,11 +358,16 @@ export default function Home() {
         onTabAdd={handleAddTab}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen((o) => !o)}
+        activeDoc={activeMarkdownDoc ? {
+          title: activeMarkdownDoc.title || activeMarkdownDoc.filePath?.split('/').pop() || 'Untitled.md',
+          onDownload: handleDownloadMarkdown,
+          onSave: handleSaveMarkdown
+        } : null}
       />
       <div className={styles.body}>
         <Sidebar open={sidebarOpen} />
         <main className={styles.main}>
-          {active && (
+          {activeTabId !== 'doc' && active && (
             <ChatPanel
               key={active.tab.id}
               messages={active.messages}
@@ -318,11 +375,14 @@ export default function Home() {
               tabTitle={active.tab.title}
             />
           )}
-          {activeMarkdownDoc && (
+          {activeTabId === 'doc' && activeMarkdownDoc && (
             <MarkdownPanel
               doc={activeMarkdownDoc}
               onChange={(content) => setActiveMarkdownDoc(prev => prev ? { ...prev, content } : null)}
-              onClose={() => setActiveMarkdownDoc(null)}
+              onClose={() => {
+                setActiveMarkdownDoc(null);
+                setActiveTabId(tabsData[0].tab.id);
+              }}
             />
           )}
         </main>
@@ -332,7 +392,7 @@ export default function Home() {
           thinking={agentThinking}
           steps={agentSteps}
           onClose={() => setAgentPanelOpen(false)}
-          setActiveMarkdownDoc={setActiveMarkdownDoc}
+          setActiveMarkdownDoc={handleSetActiveMarkdownDoc}
           onPlanAdjustment={(oldPlan, errorMsg, userMsg) => {
             const prompt = `CAN YOU ADJUST THE OLD PLAN WITH THE ERROR AND USER MESSAGE:\nError: ${errorMsg}\nMessage: ${userMsg}\nOld Plan: ${JSON.stringify(oldPlan)}`;
             fetchPlanStream(prompt);

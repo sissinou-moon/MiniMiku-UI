@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Define workspace root assuming project root
-// Alternatively we can use process.cwd() or just a 'Workspace' folder
-const WORKSPACE_DIR = process.cwd();
+// Define workspace root as the 'Workspace' folder inside the project root
+const WORKSPACE_DIR = path.join(process.cwd(), 'Workspace');
 
 export async function POST(req: Request) {
   try {

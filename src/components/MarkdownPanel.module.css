@@ -2,56 +2,247 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--borderExt, #333);
-  background: var(--bgLayer1, #1e1e1e);
+  background: #ffffff;
   overflow: hidden;
+  min-width: 0;
 }
 
-.topBar {
-  height: 48px;
+/* ── Editor container ────────────────────────────────── */
+.editorContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 80px 80px;
+  background: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .editorContainer {
+    padding: 24px 24px 60px;
+  }
+}
+
+/* ── TipTap Notion-style editor ──────────────────────── */
+.editor :global(.tiptap) {
+  outline: none;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #37352f;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.editor :global(.tiptap) > *:first-child {
+  margin-top: 0;
+}
+
+/* ── Headings ─────────────────────────────────────────── */
+.editor :global(.tiptap h1) {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 2em;
+  margin-bottom: 4px;
+  color: #37352f;
+  letter-spacing: -0.02em;
+}
+
+.editor :global(.tiptap h2) {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.4em;
+  margin-bottom: 2px;
+  color: #37352f;
+  letter-spacing: -0.01em;
+}
+
+.editor :global(.tiptap h3) {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1em;
+  margin-bottom: 2px;
+  color: #37352f;
+}
+
+/* ── Paragraphs ──────────────────────────────────────── */
+.editor :global(.tiptap p) {
+  margin: 2px 0;
+}
+
+.editor :global(.tiptap p.is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  float: left;
+  color: #bfbfbf;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* ── Lists ────────────────────────────────────────────── */
+.editor :global(.tiptap ul),
+.editor :global(.tiptap ol) {
+  padding-left: 24px;
+  margin: 2px 0;
+}
+
+.editor :global(.tiptap li) {
+  margin: 1px 0;
+}
+
+.editor :global(.tiptap li p) {
+  margin: 0;
+}
+
+/* ── Task lists ──────────────────────────────────────── */
+.editor :global(.tiptap ul[data-type="taskList"]) {
+  list-style: none;
+  padding-left: 4px;
+}
+
+.editor :global(.tiptap ul[data-type="taskList"] li) {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  background: var(--bgLayer2, #252526);
-  border-bottom: 1px solid var(--borderExt, #333);
-}
-
-.title {
-  font-size: 14px;
-  color: var(--textSecondary, #ccc);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
-.iconBtn {
-  background: transparent;
-  border: none;
-  color: var(--textSecondary, #aaa);
+.editor :global(.tiptap ul[data-type="taskList"] li label) {
+  margin-top: 4px;
+}
+
+.editor :global(.tiptap ul[data-type="taskList"] li input[type="checkbox"]) {
+  width: 16px;
+  height: 16px;
+  accent-color: #2383e2;
   cursor: pointer;
-  padding: 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ── Code ──────────────────────────────────────────────── */
+.editor :global(.tiptap code) {
+  background: #f7f6f3;
+  color: #eb5757;
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 85%;
+}
+
+.editor :global(.tiptap pre) {
+  background: #f7f6f3;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+  padding: 16px 20px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #37352f;
 }
 
-.iconBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--textMain, #fff);
+.editor :global(.tiptap pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
 }
 
-.editorContainer {
-  flex: 1;
-  overflow: auto;
-  background: #0d1117; /* GitHub dark mode background for the editor */
+/* ── Blockquotes ──────────────────────────────────────── */
+.editor :global(.tiptap blockquote) {
+  border-left: 3px solid #37352f;
+  margin: 8px 0;
+  padding-left: 16px;
+  color: #37352f;
+}
+
+/* ── Horizontal rule ─────────────────────────────────── */
+.editor :global(.tiptap hr) {
+  border: none;
+  border-top: 1px solid #e9e9e7;
+  margin: 24px 0;
+}
+
+/* ── Tables ───────────────────────────────────────────── */
+.editor :global(.tiptap table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.editor :global(.tiptap th),
+.editor :global(.tiptap td) {
+  border: 1px solid #e9e9e7;
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 80px;
+}
+
+.editor :global(.tiptap th) {
+  background: #f7f6f3;
+  font-weight: 600;
+  font-size: 14px;
+  color: #787774;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editor :global(.tiptap td) {
+  font-size: 15px;
+}
+
+.editor :global(.tiptap .selectedCell) {
+  background: #e8f0fe;
+}
+
+/* ── Highlight ────────────────────────────────────────── */
+.editor :global(.tiptap mark) {
+  background: #fff8c5;
+  padding: 2px 0;
+}
+
+/* ── Links ────────────────────────────────────────────── */
+.editor :global(.tiptap a) {
+  color: #37352f;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(55, 53, 47, 0.4);
+  cursor: pointer;
+}
+
+.editor :global(.tiptap a:hover) {
+  text-decoration-color: #37352f;
+}
+
+/* ── Bold, italic, strikethrough ──────────────────────── */
+.editor :global(.tiptap strong) {
+  font-weight: 600;
+}
+
+.editor :global(.tiptap em) {
+  font-style: italic;
+}
+
+.editor :global(.tiptap s) {
+  text-decoration: line-through;
+  text-decoration-color: rgba(55, 53, 47, 0.5);
+}
+
+/* ── Image ────────────────────────────────────────────── */
+.editor :global(.tiptap img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+/* ── Selection styling ──────────────────────────────────── */
+.editor :global(.tiptap)::selection,
+.editor :global(.tiptap) *::selection {
+  background: #b4d5fe;
 }

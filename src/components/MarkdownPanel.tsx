@@ -1,15 +1,25 @@
 'use client';
-import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useRef, useCallback } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { Placeholder } from '@tiptap/extension-placeholder';
+import { Highlight } from '@tiptap/extension-highlight';
+import { TaskList } from '@tiptap/extension-task-list';
+import { TaskItem } from '@tiptap/extension-task-item';
+import { Underline } from '@tiptap/extension-underline';
+import { TextAlign } from '@tiptap/extension-text-align';
+import Showdown from 'showdown';
+import TurndownService from 'turndown';
 import styles from './MarkdownPanel.module.css';
-
-// Dynamically import the editor strictly on the client side
-const MDEditor = dynamic(() => import('@uiw/react-md-editor').then((mod) => mod.default), { ssr: false });
 
 export interface MarkdownDoc {
   content: string;
   title?: string;
-  filePath?: string; // If it's already a saved file
+  filePath?: string;
 }
 
 interface Props {
@@ -18,91 +28,116 @@ interface Props {
   onClose: () => void;
 }
 
+// ── Converters (singleton) ─────────────────────────────────
+const mdToHtml = new Showdown.Converter({
+  tables: true,
+  tasklists: true,
+  strikethrough: true,
+  ghCodeBlocks: true,
+  simplifiedAutoLink: true,
+  openLinksInNewWindow: true,
+  emoji: true,
+});
+
+const htmlToMd = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
+
+// Add table support to turndown
+htmlToMd.addRule('tableCell', {
+  filter: ['th', 'td'],
+  replacement: (content) => ` ${content.trim()} |`,
+});
+htmlToMd.addRule('tableRow', {
+  filter: 'tr',
+  replacement: (content) => `|${content}\n`,
+});
+htmlToMd.addRule('table', {
+  filter: 'table',
+  replacement: (content) => {
+    const rows = content.trim().split('\n').filter(Boolean);
+    if (rows.length === 0) return content;
+    // Add separator after header
+    const headerCells = rows[0].split('|').filter(Boolean);
+    const separator = '|' + headerCells.map(() => ' --- ').join('|') + '|';
+    return rows[0] + separator + '\n' + rows.slice(1).join('\n') + '\n';
+  },
+});
+htmlToMd.addRule('taskListItem', {
+  filter: (node) => {
+    return node.nodeName === 'LI' && node.parentElement?.getAttribute('data-type') === 'taskList';
+  },
+  replacement: (content, node) => {
+    const checkbox = (node as HTMLElement).querySelector('input[type="checkbox"]');
+    const checked = checkbox ? (checkbox as HTMLInputElement).checked : false;
+    return `- [${checked ? 'x' : ' '}] ${content.trim()}\n`;
+  },
+});
+
 export default function MarkdownPanel({ doc, onChange, onClose }: Props) {
-  const [isSaving, setIsSaving] = useState(false);
+  const lastExternalContent = useRef(doc.content);
+  const isInternalUpdate = useRef(false);
 
-  const displayTitle = doc.title || (doc.filePath ? doc.filePath.split('/').pop() : 'Untitled.md');
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        codeBlock: {
+          HTMLAttributes: { class: 'code-block' },
+        },
+      }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      Placeholder.configure({
+        placeholder: 'Start writing, or paste your content here…',
+      }),
+      Highlight,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Underline,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    ],
+    content: mdToHtml.makeHtml(doc.content || ''),
+    editorProps: {
+      attributes: {
+        class: 'tiptap',
+        spellcheck: 'false',
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      isInternalUpdate.current = true;
+      const html = ed.getHTML();
+      const md = htmlToMd.turndown(html);
+      onChange(md);
+      lastExternalContent.current = md;
+    },
+  });
 
-  const handleDownload = () => {
-    const blob = new Blob([doc.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = displayTitle!.endsWith('.md') ? displayTitle! : `${displayTitle}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleSaveWorkspace = async () => {
-    setIsSaving(true);
-    let targetPath = doc.filePath;
-    
-    // If it doesn't have a file path, we just create one at the root or prompting could be complex
-    // User requested: "get the title from 'args' = {.... , 'title': '....', ....}"
-    // So the title is passed into doc.title. We can save it as 'title.md' in root workspace.
-    if (!targetPath) {
-      targetPath = displayTitle!.endsWith('.md') ? displayTitle : `${displayTitle}.md`;
+  // When doc.content changes externally (e.g. streaming), update editor
+  useEffect(() => {
+    if (!editor) return;
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      return;
     }
-
-    try {
-      const res = await fetch('/api/fs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'save',
-          filePath: targetPath,
-          content: doc.content,
-        })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        alert(`Failed to save: ${data.error}`);
-      } else {
-        alert(`Saved ${targetPath} successfully!`);
-      }
-    } catch (err) {
-      alert('Error saving to workspace');
+    if (doc.content !== lastExternalContent.current) {
+      lastExternalContent.current = doc.content;
+      const html = mdToHtml.makeHtml(doc.content || '');
+      editor.commands.setContent(html, false);
     }
-    setIsSaving(false);
-  };
+  }, [doc.content, editor]);
 
   return (
     <div className={styles.panel}>
-      <div className={styles.topBar}>
-        <div className={styles.title} title={displayTitle}>
-          {displayTitle}
+      <div className={styles.editorContainer}>
+        <div className={styles.editor}>
+          <EditorContent editor={editor} />
         </div>
-        <div className={styles.actions}>
-          <button className={styles.iconBtn} onClick={handleDownload} title="Download to PC">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-          </button>
-          
-          <button className={styles.iconBtn} onClick={handleSaveWorkspace} title="Save to Workspace" disabled={isSaving}>
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-          </button>
-
-          <button className={styles.iconBtn} onClick={onClose} title="Close Panel">
-             ✕
-          </button>
-        </div>
-      </div>
-      
-      <div className={styles.editorContainer} data-color-mode="dark">
-        <MDEditor
-          value={doc.content}
-          onChange={(val) => onChange(val || '')}
-          height="100%"
-          style={{ height: '100%', borderRadius: 0, border: 'none' }}
-          preview="live"
-        />
       </div>
     </div>
   );

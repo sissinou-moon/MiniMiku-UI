@@ -165,3 +165,34 @@
   background: var(--danger) !important;
   color: #fff !important;
 }
+
+/* ── Doc Tab ────────────────────────────────────────── */
+.docTab {
+  margin-left: 20px;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border);
+  gap: 10px;
+  max-width: 250px;
+}
+
+.docActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.docActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+}
+
+.docActionBtn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
