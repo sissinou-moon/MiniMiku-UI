@@ -100,6 +100,9 @@ function createWindow() {
     show: false,
   });
 
+  // ✅ ADD IT HERE
+  mainWindow.webContents.openDevTools();
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });

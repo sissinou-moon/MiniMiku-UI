@@ -27,8 +27,8 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
   const handleFileSelect = async (path: string) => {
     setSelectedPath(path);
     if (onSelectFile) {
-       onSelectFile(path);
-       return;
+      onSelectFile(path);
+      return;
     }
     // Fallback if no centralized handler
     if (path.endsWith('.md')) {
@@ -55,7 +55,11 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
   const [activeStepId, setActiveStepId] = useState<number | null>(null);
   const activeStepIdRef = useRef<number | null>(null);
   const [stepResults, setStepResults] = useState<Record<number, StepResult>>({});
+  const stepResultsRef = useRef<Record<number, StepResult>>({}); // Always up-to-date, avoids stale closures
   const [halted, setHalted] = useState(false);
+
+  // Keep ref synced with state on every render
+  stepResultsRef.current = stepResults;
 
   // When steps array changes completely, reset execution.
   // Using the first step ID or length to determine a fresh plan.
@@ -88,13 +92,13 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
         if (nextStep!.tool === 'llm_execution') {
           const titleAttr = (nextStep!.args.title as string) || 'LLM Output';
           let promptData = (nextStep!.args.data as string) || '';
-          
+
           try {
             promptData = promptData.replace(/\$(\d+)\.output/g, (match, stepIdStr) => {
               const sid = parseInt(stepIdStr, 10);
               if (!stepResults[sid]) throw new Error(`Dependency error: Step ${sid} hasn't completed yet.`);
               if (!stepResults[sid].success) throw new Error(`Dependency error: Step ${sid} failed. Cannot proceed.`);
-              
+
               // We inject the result string directly.
               let val = stepResults[sid].result;
               return typeof val === 'string' ? val : JSON.stringify(val);
@@ -108,6 +112,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
           setActiveMarkdownDoc?.({ content: '', title: titleAttr });
 
           const apiUrl = process.env.NEXT_PUBLIC_LLM_API_URL || 'http://localhost:8000/llm/text';
+          console.log('[llm_execution] started with prompt: ', promptData);
           const res = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -115,7 +120,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
           });
 
           if (!res.body) throw new Error('No body in response');
-          
+
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
@@ -168,6 +173,66 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
         } else {
           // Standard tool execution
+          let processedArgs = { ...nextStep!.args };
+
+          try {
+            // Converts a step result value to a plain string suitable for keyboard input
+            const resultToString = (val: any): string => {
+              if (typeof val === 'string') return val;
+              if (Array.isArray(val)) {
+                return val.map((item: any) => {
+                  if (item && typeof item === 'object') {
+                    const parts: string[] = [];
+                    if (item.title) parts.push(`## ${item.title}`);
+                    if (item.snippet) parts.push(item.snippet);
+                    if (item.url) parts.push(`URL: ${item.url}`);
+                    return parts.join('\n');
+                  }
+                  return String(item);
+                }).join('\n\n');
+              }
+              return JSON.stringify(val, null, 2);
+            };
+
+            const processValue = (val: any): any => {
+              if (typeof val === 'string') {
+                const exactMatch = val.match(/^\$(\d+)\.outputs?$/);
+                if (exactMatch) {
+                  const sid = parseInt(exactMatch[1], 10);
+                  const latestResults = stepResultsRef.current;
+                  console.log(`[processValue] Looking up $${sid}.output — available step IDs: [${Object.keys(latestResults).join(', ')}]`);
+                  if (!latestResults[sid]) throw new Error(`Dependency error: Step ${sid} hasn't completed yet. Available: [${Object.keys(latestResults).join(', ')}]`);
+                  if (!latestResults[sid].success) throw new Error(`Dependency error: Step ${sid} failed.`);
+                  const raw = latestResults[sid].result;
+                  console.log(`[processValue] $${sid}.output resolved to:`, typeof raw === 'string' ? raw.slice(0, 100) : raw);
+                  // Always return a string so keyboard/paste actions work correctly
+                  return resultToString(raw);
+                }
+                return val.replace(/\$(\d+)\.outputs?/g, (match, stepIdStr) => {
+                  const sid = parseInt(stepIdStr, 10);
+                  const latestResults = stepResultsRef.current;
+                  if (!latestResults[sid]) throw new Error(`Dependency error: Step ${sid} hasn't completed yet.`);
+                  if (!latestResults[sid].success) throw new Error(`Dependency error: Step ${sid} failed.`);
+                  return resultToString(latestResults[sid].result);
+                });
+              }
+              if (Array.isArray(val)) return val.map(processValue);
+              if (val !== null && typeof val === 'object') {
+                const newObj: any = {};
+                for (const k in val) newObj[k] = processValue(val[k]);
+                return newObj;
+              }
+              return val;
+            };
+
+            processedArgs = processValue(nextStep!.args);
+            console.log('[processedArgs after substitution]', processedArgs);
+          } catch (e: any) {
+            setHalted(true);
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message } }));
+            return;
+          }
+
           const prevId = nextStep!.id > 1 ? nextStep!.id - 1 : null;
           let prevResultPayload = undefined;
           if (prevId && stepResults[prevId]) {
@@ -183,7 +248,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               tool: nextStep!.tool,
-              args: nextStep!.args,
+              args: processedArgs,
               current_step: nextStep!.id,
               previous_step_result: prevResultPayload
             })

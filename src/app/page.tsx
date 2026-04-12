@@ -146,6 +146,7 @@ export default function Home() {
         if (m) {
           const parsed = JSON.parse(m[1]);
           if (parsed.type === 'plan' && Array.isArray(parsed.steps)) {
+            console.log(parsed.steps)
             setAgentSteps(parsed.steps);
           }
         }
