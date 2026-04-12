@@ -1,19 +1,28 @@
 .wrapper {
   display: flex;
   gap: var(--space-md);
-  padding: var(--space-sm) var(--space-2xl);
-  max-width: 760px;
+  padding: var(--space-sm) 0;
+  width: 60%;
   margin: 0 auto;
-  width: 100%;
   animation: msg-appear 0.2s ease forwards;
 }
 
 @keyframes msg-appear {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.wrapperUser { flex-direction: row-reverse; }
+.wrapperUser {
+  /* We remove flex-direction: row-reverse so both user and AI align the same way */
+  flex-direction: row;
+}
 
 /* ── Avatar ───────────────────────────────────────────── */
 .avatar {
@@ -54,7 +63,10 @@
   gap: var(--space-sm);
   margin-bottom: var(--space-xs);
 }
-.wrapperUser .meta { flex-direction: row-reverse; }
+
+.wrapperUser .meta {
+  flex-direction: row;
+}
 
 .role {
   font-size: 13px;
@@ -77,7 +89,7 @@
 
 .bubbleUser {
   background: var(--bg-tertiary);
-  border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
 }
 
 .bubbleAi {
@@ -141,8 +153,14 @@
   opacity: 0.4;
   animation: pulse-dot 1.3s ease-in-out infinite;
 }
-.planDot:nth-child(2) { animation-delay: 0.2s; }
-.planDot:nth-child(3) { animation-delay: 0.4s; }
+
+.planDot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.planDot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 .planLabel {
   font-size: 11px;

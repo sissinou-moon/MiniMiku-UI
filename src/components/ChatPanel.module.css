@@ -32,8 +32,15 @@
 }
 
 @keyframes logo-fade {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 0.15; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 0.15;
+    transform: translateY(0);
+  }
 }
 
 .emptyTitle {
@@ -51,8 +58,15 @@
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Suggestions ──────────────────────────────────────── */
@@ -76,6 +90,7 @@
   line-height: 1.4;
   transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
 }
+
 .suggestion:hover {
   border-color: var(--border-strong);
   background: var(--bg-secondary);
@@ -86,28 +101,41 @@
 /* ── Input area ───────────────────────────────────────── */
 .inputArea {
   flex-shrink: 0;
-  padding: var(--space-md) var(--space-2xl) var(--space-lg);
-  border-top: 1px solid var(--border);
-  background: var(--bg);
+  padding: var(--space-md) 0 var(--space-xl);
+  background: transparent;
+  display: flex;
+  justify-content: center;
+}
+
+.inputWrapper {
+  width: 60%;
+  max-width: 60%;
+  display: flex;
+  flex-direction: column;
 }
 
 .inputBox {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-sm);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
+  flex-direction: column;
   background: var(--bg);
-  transition: border-color var(--transition), box-shadow var(--transition);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  /* Light border with low opacity */
+  border-radius: 20px;
+  /* Apple-like border radius */
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  /* Soft floating shadow */
+  padding: 12px 14px;
+  min-height: 110px;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
+
 .inputBox:focus-within {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 }
+
 .inputBoxActive:focus-within {
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  border-color: rgba(0, 0, 0, 0.4);
 }
 
 .textarea {
@@ -115,17 +143,47 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text);
   resize: none;
-  min-height: 24px;
-  max-height: 200px;
+  min-height: 60px;
+  max-height: 250px;
   overflow-y: auto;
   user-select: text;
+  margin-bottom: 8px;
+  /* space between text and toolbar */
 }
+
 .textarea::placeholder {
   color: var(--text-disabled);
+}
+
+/* ── Input Toolbar ────────────────────────────────────── */
+.inputToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.attachBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attachBtn:hover {
+  background: var(--hover);
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--text);
 }
 
 .sendBtn {
@@ -134,18 +192,21 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
-  background: var(--border);
+  border-radius: 50%;
+  /* standard circle */
+  background: #e5e5e5;
   color: var(--text-disabled);
   flex-shrink: 0;
-  transition: background var(--transition), color var(--transition), transform 80ms;
+  transition: background 0.2s, color 0.2s, transform 0.1s;
 }
+
 .sendBtnActive {
-  background: var(--text);
+  background: #111;
   color: #fff;
 }
+
 .sendBtnActive:hover {
-  background: #222;
+  background: #000;
   transform: scale(1.05);
 }
 
