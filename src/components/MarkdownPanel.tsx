@@ -49,21 +49,38 @@ const htmlToMd = new TurndownService({
 // Add table support to turndown
 htmlToMd.addRule('tableCell', {
   filter: ['th', 'td'],
-  replacement: (content) => ` ${content.trim()} |`,
+  replacement: (content) => content.trim(),
 });
+
 htmlToMd.addRule('tableRow', {
   filter: 'tr',
-  replacement: (content) => `|${content}\n`,
+  replacement: (content, node) => {
+    const cells = Array.from(node.children).map(td =>
+      td.textContent?.trim() || ''
+    );
+    return `| ${cells.join(' | ')} |\n`;
+  },
 });
+
 htmlToMd.addRule('table', {
   filter: 'table',
-  replacement: (content) => {
-    const rows = content.trim().split('\n').filter(Boolean);
-    if (rows.length === 0) return content;
-    // Add separator after header
-    const headerCells = rows[0].split('|').filter(Boolean);
-    const separator = '|' + headerCells.map(() => ' --- ').join('|') + '|';
-    return rows[0] + separator + '\n' + rows.slice(1).join('\n') + '\n';
+  replacement: (content, node) => {
+    const rows = Array.from(node.querySelectorAll('tr')).map(tr => {
+      const cells = Array.from(tr.children).map(td =>
+        td.textContent?.trim() || ''
+      );
+      return `| ${cells.join(' | ')} |`;
+    });
+
+    if (rows.length === 0) return '';
+
+    const header = rows[0];
+    const colCount = header.split('|').length - 2;
+
+    const separator =
+      '| ' + Array(colCount).fill('---').join(' | ') + ' |';
+
+    return '\n\n' + [header, separator, ...rows.slice(1)].join('\n') + '\n\n';
   },
 });
 htmlToMd.addRule('taskListItem', {
@@ -93,6 +110,13 @@ export default function MarkdownPanel({ doc, onChange, onClose, onSave }: Props)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onSave]);
 
+  function fixMarkdown(md: string) {
+    return md
+      .replace(/\\n/g, '\n') // fix escaped newlines
+      .replace(/\|\s*\|/g, '|\n|') // split merged rows
+      .replace(/\|\|/g, '|'); // remove duplicates
+  }
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -115,7 +139,7 @@ export default function MarkdownPanel({ doc, onChange, onClose, onSave }: Props)
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
-    content: mdToHtml.makeHtml(doc.content || ''),
+    content: mdToHtml.makeHtml(fixMarkdown(doc.content || '')),
     editorProps: {
       attributes: {
         class: 'tiptap',

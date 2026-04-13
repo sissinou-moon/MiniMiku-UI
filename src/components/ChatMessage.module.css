@@ -86,7 +86,8 @@
 }
 
 .wrapperUser .meta {
-  flex-direction: row; /* row + flex-end body is simpler */
+  flex-direction: row;
+  /* row + flex-end body is simpler */
   justify-content: flex-end;
   text-align: right;
 }
@@ -117,14 +118,14 @@
   border: 1.5px solid var(--border-strong);
   /* Top-right corner matches the avatar position on the right */
   border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .bubbleAi {
   background: var(--bg);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .text {
