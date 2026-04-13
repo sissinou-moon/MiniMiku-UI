@@ -421,10 +421,15 @@ export async function channel_youtube_videos(args: Record<string, any>) {
     const videos = await page.locator('ytd-rich-grid-media').all();
     const data = [];
 
-    for (const video of videos.slice(0, 5)) { // Getting first 5
+    for (const video of videos.slice(0, 5)) {
       const title = await video.locator('#video-title').innerText();
-      const views = await video.locator('#metadata-line span').first().innerText();
-      data.push({ title, views });
+
+      const metadata = video.locator('#metadata-line span');
+
+      const views = await metadata.nth(0).innerText();
+      const date = await metadata.nth(1).innerText(); // ✅ upload date
+
+      data.push({ title, views, date });
     }
 
     return { success: true, result: data };

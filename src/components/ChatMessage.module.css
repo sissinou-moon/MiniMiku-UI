@@ -2,9 +2,22 @@
   display: flex;
   gap: var(--space-md);
   padding: var(--space-sm) 0;
-  width: 60%;
+  width: 70%;
+  max-width: 800px;
   margin: 0 auto;
   animation: msg-appear 0.2s ease forwards;
+}
+
+@media (max-width: 1100px) {
+  .wrapper {
+    width: 85%;
+  }
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    width: 95%;
+  }
 }
 
 @keyframes msg-appear {
@@ -20,8 +33,9 @@
 }
 
 .wrapperUser {
-  /* We remove flex-direction: row-reverse so both user and AI align the same way */
-  flex-direction: row;
+  margin-left: auto;
+  margin-right: auto;
+  flex-direction: row-reverse;
 }
 
 /* ── Avatar ───────────────────────────────────────────── */
@@ -40,7 +54,8 @@
 
 .avatarUser {
   background: var(--text);
-  color: #fff;
+  color: var(--bg);
+  box-shadow: 0 0 0 1px var(--text);
 }
 
 .avatarAi {
@@ -57,6 +72,12 @@
   max-width: calc(100% - 44px);
 }
 
+.wrapperUser .body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .meta {
   display: flex;
   align-items: baseline;
@@ -65,18 +86,22 @@
 }
 
 .wrapperUser .meta {
-  flex-direction: row;
+  flex-direction: row; /* row + flex-end body is simpler */
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .role {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
+  letter-spacing: -0.01em;
 }
 
 .time {
   font-size: 11px;
   color: var(--text-disabled);
+  font-weight: 400;
 }
 
 /* ── Bubble ───────────────────────────────────────────── */
@@ -88,14 +113,18 @@
 }
 
 .bubbleUser {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-strong);
+  /* Top-right corner matches the avatar position on the right */
+  border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .bubbleAi {
   background: var(--bg);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .text {
@@ -109,11 +138,11 @@
 .thinkBox {
   margin-bottom: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: rgba(247, 246, 243, 0.4);
-  opacity: 0.4;
+  background: var(--bg-secondary);
   border-left: 2px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
+  opacity: 0.6;
   transition: opacity var(--transition), background var(--transition);
 }
 
@@ -166,4 +195,130 @@
   font-size: 11px;
   color: var(--text-disabled);
   margin-left: 4px;
+}
+
+/* ── Markdown content in AI messages ─────────────────────── */
+.markdownContent {
+  white-space: normal;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.markdownContent h1 {
+  font-size: 1.25em;
+}
+
+.markdownContent h2 {
+  font-size: 1.1em;
+}
+
+.markdownContent h3 {
+  font-size: 1em;
+}
+
+.markdownContent h1:first-child,
+.markdownContent h2:first-child,
+.markdownContent h3:first-child {
+  margin-top: 0;
+}
+
+.markdownContent p {
+  margin: 0.45em 0;
+  line-height: 1.65;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+
+.markdownContent li {
+  margin: 0.2em 0;
+  line-height: 1.55;
+}
+
+.markdownContent strong {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.markdownContent em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.markdownContent code {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.88em;
+  background: var(--bg-tertiary);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.markdownContent pre {
+  margin: 0.6em 0;
+  padding: 0.75em 1em;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+
+.markdownContent pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.markdownContent blockquote {
+  margin: 0.5em 0;
+  padding: 0.3em 0.8em;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.markdownContent a {
+  color: #4A9EFF;
+  text-decoration: none;
+}
+
+.markdownContent a:hover {
+  text-decoration: underline;
+}
+
+.markdownContent table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.9em;
+}
+
+.markdownContent th,
+.markdownContent td {
+  padding: 0.4em 0.65em;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdownContent th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+.markdownContent hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.8em 0;
 }

@@ -427,6 +427,52 @@ export default function Home() {
     });
   }, []);
 
+  // Add AI message to the active chat (used by llm_decision)
+  const handleAddChatMessage = useCallback((content: string) => {
+    const aiMsg: Message = {
+      id: `msg-${Date.now()}-decision`,
+      role: 'ai',
+      content,
+      timestamp: new Date(),
+    };
+    setTabsData(prev => {
+      // Find the first chat tab with messages (the active conversation)
+      const chatTab = prev.find(td => td.type === 'chat' && td.messages.length > 0) || prev.find(td => td.type === 'chat');
+      if (!chatTab) return prev;
+      return prev.map(td =>
+        td.id !== chatTab.id ? td : { ...td, messages: [...td.messages, aiMsg] }
+      );
+    });
+  }, []);
+
+  // Stream AI message: create or update a message by a stable ID
+  const handleStreamChatMessage = useCallback((messageId: string, content: string) => {
+    setTabsData(prev => {
+      const chatTab = prev.find(td => td.type === 'chat' && td.messages.length > 0) || prev.find(td => td.type === 'chat');
+      if (!chatTab) return prev;
+      return prev.map(td => {
+        if (td.id !== chatTab.id) return td;
+        const existingIdx = td.messages.findIndex(m => m.id === messageId);
+        if (existingIdx !== -1) {
+          // Update existing message content
+          const msgs = [...td.messages];
+          msgs[existingIdx] = { ...msgs[existingIdx], content };
+          return { ...td, messages: msgs };
+        }
+        // Create new message
+        return {
+          ...td,
+          messages: [...td.messages, {
+            id: messageId,
+            role: 'ai' as const,
+            content,
+            timestamp: new Date(),
+          }]
+        };
+      });
+    });
+  }, []);
+
   return (
     <div className={styles.app}>
       <TabBar
@@ -475,6 +521,8 @@ export default function Home() {
           steps={agentSteps}
           onClose={() => setAgentPanelOpen(false)}
           setActiveMarkdownDoc={addDocTabFromLLM}
+          onAddChatMessage={handleAddChatMessage}
+          onStreamChatMessage={handleStreamChatMessage}
           onSelectFile={handleFileSelect}
           onPlanAdjustment={(oldPlan, errorMsg, userMsg) => {
             const prompt = `CAN YOU ADJUST THE OLD PLAN WITH THE ERROR AND USER MESSAGE:\nError: ${errorMsg}\nMessage: ${userMsg}\nOld Plan: ${JSON.stringify(oldPlan)}`;

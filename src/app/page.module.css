@@ -17,7 +17,8 @@
   flex: 1;
   overflow: hidden;
   display: flex;
-  flex-direction: row; /* changed from column if we want panels side-by-side, wait. main wraps chat, but maybe chat shouldn't take all width */
+  flex-direction: column;
+  /* changed from column if we want panels side-by-side, wait. main wraps chat, but maybe chat shouldn't take all width */
 }
 
 /* ChatPanel already flexes inside main, let's keep it row and apply flex to direct children of main */

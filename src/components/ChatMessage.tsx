@@ -1,5 +1,6 @@
 'use client';
 import styles from './ChatMessage.module.css';
+import Showdown from 'showdown';
 
 export interface Message {
   id: string;
@@ -11,6 +12,17 @@ export interface Message {
 }
 
 interface Props { message: Message; }
+
+// Markdown converter for AI messages
+const mdConverter = new Showdown.Converter({
+  tables: true,
+  tasklists: true,
+  strikethrough: true,
+  ghCodeBlocks: true,
+  simplifiedAutoLink: true,
+  openLinksInNewWindow: true,
+  emoji: true,
+});
 
 function fmt(d: Date) {
   return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(d);
@@ -57,7 +69,16 @@ export default function ChatMessage({ message }: Props) {
 
       {/* Avatar */}
       <div className={`${styles.avatar} ${isUser ? styles.avatarUser : styles.avatarAi}`}>
-        {isUser ? 'U' : '◆'}
+        {isUser ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l1.912 5.885h6.19l-5.007 3.638 1.912 5.885-5.007-3.638-5.007 3.638 1.912-5.885-5.007-3.638h6.19z" />
+          </svg>
+        )}
       </div>
 
       {/* Content */}
@@ -88,7 +109,14 @@ export default function ChatMessage({ message }: Props) {
             </div>
           ) : (
             message.content && (
-              <p className={`${styles.text} selectable`}>{getDisplayContent(message.content)}</p>
+              isUser ? (
+                <p className={`${styles.text} selectable`}>{message.content}</p>
+              ) : (
+                <div
+                  className={`${styles.text} ${styles.markdownContent} selectable`}
+                  dangerouslySetInnerHTML={{ __html: mdConverter.makeHtml(getDisplayContent(message.content)) }}
+                />
+              )
             )
           )}
 

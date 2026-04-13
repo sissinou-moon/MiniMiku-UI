@@ -27,7 +27,7 @@ interface Props {
 export default function ChatPanel({ messages, onSend, tabTitle }: Props) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -133,14 +133,14 @@ export default function ChatPanel({ messages, onSend, tabTitle }: Props) {
               aria-label="Chat input"
             />
             <div className={styles.inputToolbar}>
-              <button 
-                className={styles.attachBtn} 
-                aria-label="Attach file" 
+              <button
+                className={styles.attachBtn}
+                aria-label="Attach file"
                 title="Attach file"
               >
                 <AttachIcon />
               </button>
-              
+
               <button
                 id="send-btn"
                 className={`${styles.sendBtn} ${canSend ? styles.sendBtnActive : ''}`}
@@ -171,7 +171,7 @@ const SUGGESTIONS = [
 function SendIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M2 14L14 8 2 2v5l9 1-9 1v5Z" fill="currentColor"/>
+      <path d="M2 14L14 8 2 2v5l9 1-9 1v5Z" fill="currentColor" />
     </svg>
   );
 }

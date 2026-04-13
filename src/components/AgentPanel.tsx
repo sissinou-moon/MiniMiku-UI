@@ -8,6 +8,54 @@ import styles from './AgentPanel.module.css';
 
 export type { PlanStep };
 
+// Helper: incrementally extract a JSON string value starting from the opening quote.
+// Handles escape sequences (\n, \", \\, \uXXXX, etc.).
+// Returns the unescaped value extracted so far and whether the closing quote was found.
+function extractJsonStringValue(text: string, openQuoteIdx: number): { value: string; complete: boolean } {
+  let value = '';
+  let i = openQuoteIdx + 1; // skip opening quote
+  let escaped = false;
+
+  while (i < text.length) {
+    const ch = text[i];
+    if (escaped) {
+      switch (ch) {
+        case 'n': value += '\n'; break;
+        case 'r': value += '\r'; break;
+        case 't': value += '\t'; break;
+        case '"': value += '"'; break;
+        case '\\': value += '\\'; break;
+        case '/': value += '/'; break;
+        case 'b': value += '\b'; break;
+        case 'f': value += '\f'; break;
+        case 'u': {
+          if (i + 4 < text.length) {
+            value += String.fromCharCode(parseInt(text.substring(i + 1, i + 5), 16));
+            i += 4;
+          } else {
+            return { value, complete: false };
+          }
+          break;
+        }
+        default: value += ch; break;
+      }
+      escaped = false;
+      i++;
+      continue;
+    }
+    if (ch === '\\') {
+      if (i + 1 >= text.length) return { value, complete: false }; // boundary
+      escaped = true;
+      i++;
+      continue;
+    }
+    if (ch === '"') return { value, complete: true }; // closing quote
+    value += ch;
+    i++;
+  }
+  return { value, complete: false };
+}
+
 interface Props {
   isOpen: boolean;
   isLoading: boolean;
@@ -15,11 +63,13 @@ interface Props {
   steps: PlanStep[];
   onClose: () => void;
   setActiveMarkdownDoc?: (doc: import('./MarkdownPanel').MarkdownDoc) => void;
+  onAddChatMessage?: (content: string) => void;
+  onStreamChatMessage?: (messageId: string, content: string) => void;
   onPlanAdjustment?: (oldPlan: PlanStep[], errorMsg: string, userMsg: string) => void;
   onSelectFile?: (path: string) => void;
 }
 
-export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, setActiveMarkdownDoc, onPlanAdjustment }: Props) {
+export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose, setActiveMarkdownDoc, onAddChatMessage, onStreamChatMessage, onPlanAdjustment, onSelectFile }: Props) {
   const [activeTab, setActiveTab] = useState<'process' | 'files'>('process');
   const [selectedPath, setSelectedPath] = useState('');
   const { tree } = useFileTree();
@@ -109,8 +159,6 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             return;
           }
 
-          setActiveMarkdownDoc?.({ content: '', title: titleAttr });
-
           const apiUrl = process.env.NEXT_PUBLIC_LLM_API_URL || 'http://localhost:8000/llm/text';
           console.log('[llm_execution] started with prompt: ', promptData);
           const res = await fetch(apiUrl, {
@@ -162,10 +210,204 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
             if (newContent) {
               fullContent += newContent;
-              // For streaming, we might still want a "current doc" updater, 
-              // but given the tabbed refactor, we'll need to update the tab's content.
-              // For now, call the setter with the full content.
-              setActiveMarkdownDoc?.({ content: fullContent, title: titleAttr });
+            }
+          }
+
+          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink, finalized: true } }));
+
+        } else if (nextStep!.tool === 'llm_decision') {
+          // ── llm_decision: stream from decision endpoint, parse incrementally ──
+          let promptData = '';
+          try {
+            const rawData = (nextStep!.args.data as string) || '';
+            const userQuestion = (nextStep!.args.user_question as string) || '';
+
+            const resolveRefs = (str: string) => str.replace(/\$(\d+)\.outputs?/g, (_match: string, stepIdStr: string) => {
+              const sid = parseInt(stepIdStr, 10);
+              const latestResults = stepResultsRef.current;
+              if (!latestResults[sid]) throw new Error(`Dependency error: Step ${sid} hasn't completed yet.`);
+              if (!latestResults[sid].success) throw new Error(`Dependency error: Step ${sid} failed.`);
+              const val = latestResults[sid].result;
+              return typeof val === 'string' ? val : JSON.stringify(val);
+            });
+
+            const resolvedData = resolveRefs(rawData);
+            const resolvedQuestion = resolveRefs(userQuestion);
+            promptData = `User Question: ${resolvedQuestion}\n\nData:\n${resolvedData}`;
+          } catch (e: any) {
+            setHalted(true);
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message, finalized: true } }));
+            return;
+          }
+
+          const decisionUrl = 'http://localhost:8000/llm/text/decision';
+          console.log('[llm_decision] started with prompt length:', promptData.length);
+          const res = await fetch(decisionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: promptData })
+          });
+
+          if (!res.body) throw new Error('No body in decision response');
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let fullContent = '';
+          let fullThink = '';
+
+          // ── Incremental JSON parsing state ──
+          let detectedType: string | null = null;
+
+          // file_needed streaming state
+          let contentFieldQuoteIdx = -1;
+          let lastStreamedContentLen = 0;
+          let contentDone = false;
+          let resumeFieldQuoteIdx = -1;
+          let lastStreamedResumeLen = 0;
+          let resumeDone = false;
+          let mdTabOpened = false;
+          const resumeMsgId = `msg-${Date.now()}-decision-resume`;
+
+          // direct_answer / answer streaming state
+          let answerFieldQuoteIdx = -1;
+          let lastStreamedAnswerLen = 0;
+          let answerDone = false;
+          const answerMsgId = `msg-${Date.now()}-decision-answer`;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop() || '';
+
+            let newThink = '';
+            let newContent = '';
+
+            for (const part of parts) {
+              if (!part.trim()) continue;
+              const lines = part.split('\n');
+              let event = '';
+              let dataLines: string[] = [];
+
+              for (const line of lines) {
+                if (line.startsWith('event: ')) event = line.substring(7).trim();
+                else if (line.startsWith('data: ')) dataLines.push(line.substring(6));
+                else if (line.startsWith('data:')) dataLines.push(line.substring(5));
+              }
+
+              const data = dataLines.join('\n');
+              if (event === 'think') newThink += data;
+              else if (event === 'content' || (!event && dataLines.length > 0)) newContent += data;
+            }
+
+            if (newThink) {
+              fullThink += newThink;
+              setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink, finalized: false } }));
+            }
+
+            if (newContent) {
+              fullContent += newContent;
+
+              // ── Detect type if not yet known ──
+              if (!detectedType) {
+                const typeMatch = fullContent.match(/"type"\s*:\s*"(file_needed|direct_answer|answer)"/);
+                if (typeMatch) {
+                  detectedType = typeMatch[1];
+                  console.log('[llm_decision] Detected streaming type:', detectedType);
+                }
+              }
+
+              // ── file_needed: stream content → MarkdownPanel, then resume → Chat ──
+              if (detectedType === 'file_needed') {
+                // Find the opening quote of the "content" field value
+                if (contentFieldQuoteIdx === -1) {
+                  const m = fullContent.match(/"content"\s*:\s*"/);
+                  if (m) {
+                    contentFieldQuoteIdx = m.index! + m[0].length - 1;
+                    // Open the MarkdownPanel tab immediately
+                    if (!mdTabOpened && setActiveMarkdownDoc) {
+                      setActiveMarkdownDoc({ content: '', title: 'Decision Report' });
+                      mdTabOpened = true;
+                    }
+                  }
+                }
+
+                // Stream content value into MarkdownPanel
+                if (contentFieldQuoteIdx !== -1 && !contentDone) {
+                  const { value: contentVal, complete } = extractJsonStringValue(fullContent, contentFieldQuoteIdx);
+                  if (contentVal.length > lastStreamedContentLen && setActiveMarkdownDoc) {
+                    setActiveMarkdownDoc({ content: contentVal, title: 'Decision Report' });
+                    lastStreamedContentLen = contentVal.length;
+                  }
+                  if (complete) {
+                    contentDone = true;
+                    console.log('[llm_decision] Content field streaming complete, length:', contentVal.length);
+                  }
+                }
+
+                // Once content is complete, look for "resume" field
+                if (contentDone && resumeFieldQuoteIdx === -1) {
+                  const m = fullContent.match(/"resume"\s*:\s*"/);
+                  if (m) {
+                    resumeFieldQuoteIdx = m.index! + m[0].length - 1;
+                  }
+                }
+
+                // Stream resume value into chat
+                if (resumeFieldQuoteIdx !== -1 && !resumeDone) {
+                  const { value: resumeVal, complete } = extractJsonStringValue(fullContent, resumeFieldQuoteIdx);
+                  if (resumeVal.length > lastStreamedResumeLen) {
+                    onStreamChatMessage?.(resumeMsgId, resumeVal);
+                    lastStreamedResumeLen = resumeVal.length;
+                  }
+                  if (complete) {
+                    resumeDone = true;
+                    console.log('[llm_decision] Resume field streaming complete');
+                  }
+                }
+              }
+
+              // ── direct_answer/answer: stream answer → Chat ──
+              if (detectedType === 'direct_answer' || detectedType === 'answer') {
+                if (answerFieldQuoteIdx === -1) {
+                  const m = fullContent.match(/"(?:answer|content)"\s*:\s*"/);
+                  if (m) {
+                    answerFieldQuoteIdx = m.index! + m[0].length - 1;
+                  }
+                }
+
+                if (answerFieldQuoteIdx !== -1 && !answerDone) {
+                  const { value: answerVal, complete } = extractJsonStringValue(fullContent, answerFieldQuoteIdx);
+                  if (answerVal.length > lastStreamedAnswerLen) {
+                    onStreamChatMessage?.(answerMsgId, answerVal);
+                    lastStreamedAnswerLen = answerVal.length;
+                  }
+                  if (complete) answerDone = true;
+                }
+              }
+            }
+          }
+
+          // ── Fallback: if streaming parsing didn't detect type, try batch parse ──
+          if (!detectedType) {
+            console.warn('[llm_decision] Streaming parse failed to detect type, trying batch parse');
+            try {
+              let cleaned = fullContent.trim();
+              cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '');
+              cleaned = cleaned.replace(/\n?\s*```\s*$/, '');
+              const parsed = JSON.parse(cleaned);
+              if (parsed.type === 'file_needed') {
+                if (parsed.content) setActiveMarkdownDoc?.({ content: parsed.content, title: 'Decision Report' });
+                onAddChatMessage?.(parsed.resume || 'Report generated. See the Markdown panel.');
+              } else {
+                onAddChatMessage?.(parsed.answer || parsed.content || '');
+              }
+            } catch {
+              console.error('[llm_decision] Batch parse also failed');
+              onAddChatMessage?.('I processed your request but encountered a formatting issue. Check the agent panel for details.');
             }
           }
 
