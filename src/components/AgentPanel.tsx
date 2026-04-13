@@ -75,7 +75,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
     if (steps.length === 0 || halted) return;
 
     // Find the very first step that has no result yet
-    const nextStep = steps.find(s => !stepResults[s.id]);
+    const nextStep = steps.find(s => !stepResults[s.id]?.finalized);
     if (!nextStep) {
       activeStepIdRef.current = null;
       setActiveStepId(null);
@@ -105,7 +105,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             });
           } catch (e: any) {
             setHalted(true);
-            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message } }));
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message, finalized: true } }));
             return;
           }
 
@@ -157,7 +157,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
 
             if (newThink) {
               fullThink += newThink;
-              setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink } }));
+              setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink, finalized: false } }));
             }
 
             if (newContent) {
@@ -169,7 +169,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             }
           }
 
-          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink } }));
+          setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: fullContent, think: fullThink, finalized: true } }));
 
         } else {
           // Standard tool execution
@@ -229,7 +229,7 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
             console.log('[processedArgs after substitution]', processedArgs);
           } catch (e: any) {
             setHalted(true);
-            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message } }));
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: e.message, finalized: true } }));
             return;
           }
 
@@ -259,16 +259,16 @@ export default function AgentPanel({ isOpen, isLoading, thinking, steps, onClose
           if (activeStepIdRef.current !== nextStep!.id) return;
 
           if (data.success) {
-            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result } }));
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: true, result: data.result, finalized: true } }));
           } else {
             setHalted(true);
-            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error } }));
+            setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: data.error, finalized: true } }));
           }
         }
       } catch (err: any) {
         if (activeStepIdRef.current !== nextStep!.id) return;
         setHalted(true);
-        setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: err.message } }));
+        setStepResults(prev => ({ ...prev, [nextStep!.id]: { success: false, result: 'Failed', error: err.message, finalized: true } }));
       }
     }
 

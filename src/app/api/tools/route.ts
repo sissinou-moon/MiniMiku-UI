@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { open_app, browser_action, app_action } from '@/tools';
+import { open_app, browser_action, app_action, channel_youtube_videos } from '@/tools';
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +15,8 @@ export async function POST(req: Request) {
       result = await browser_action(args, previous_step_result);
     } else if (tool === 'app_action') {
       result = await app_action(args);
+    } else if (tool === 'channel_youtube_videos') {
+      result = await channel_youtube_videos(args);
     } else {
       // Return success: false so execution halts on unknown tool
       throw new Error(`Execution stopped: Unknown tool '${tool}'.`);

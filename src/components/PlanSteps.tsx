@@ -14,6 +14,7 @@ export interface StepResult {
   result: any;
   error?: string;
   think?: string;
+  finalized?: boolean;
 }
 
 const TOOL_COLORS: Record<string, { color: string; bg: string }> = {
@@ -87,7 +88,7 @@ export default function PlanSteps({
               )}
 
               {/* Status Indicator */}
-              {activeStepId === step.id && !stepResults?.[step.id] && (
+              {activeStepId === step.id && !stepResults?.[step.id]?.finalized && (
                 <div className={styles.statusIndicator}>
                   <div className={styles.spinner} />
                   <span>Executing step...</span>

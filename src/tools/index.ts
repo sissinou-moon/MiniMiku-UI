@@ -306,21 +306,82 @@ export async function browser_action(args: Record<string, any>, previousState?: 
     const context = await browser.newContext();
     const page = await context.newPage();
 
+    const isDirectUrl = typeof query === 'string' &&
+      (query.startsWith('http') || query.startsWith('www.'));
+
+    const targetUrl = isDirectUrl
+      ? query
+      : `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+
+
     // Navigate and search on DuckDuckGo
-    await page.goto(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+    await page.goto(targetUrl);
 
     // Attempt to wait for generic text block results
     await page.waitForSelector('.result__snippet', { timeout: 7000 }).catch(() => { });
 
     // Extract raw text from Document Body
     const results = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.result')).map((el) => {
-        const element = el as HTMLElement;
+
+      function extractRealUrl(url: any) {
+        try {
+          const u = new URL(url);
+          return decodeURIComponent(u.searchParams.get("uddg") || url);
+        } catch {
+          return url;
+        }
+      }
+
+      function getDomain(url: any) {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return null;
+        }
+      }
+
+      return Array.from(document.querySelectorAll('.result')).map((el, i) => {
+        const link = el.querySelector('a');
+
+        const rawUrl = link?.href || "";
+        const url = extractRealUrl(rawUrl);
 
         return {
-          title: element.querySelector('a')?.textContent,
-          snippet: element.querySelector('.result__snippet')?.textContent,
-          url: (element.querySelector('a') as HTMLAnchorElement)?.href
+          rank: i + 1,
+
+          // identity
+          title: link?.textContent?.trim() || null,
+          url,
+          rawUrl,
+          domain: getDomain(url),
+          displayUrl: el.querySelector('.result__url')?.textContent?.trim() || null,
+
+          // content
+          snippet: el.querySelector('.result__snippet')?.textContent?.trim() || null,
+
+          // enrichment signals
+          badge: el.querySelector('.result__badge')?.textContent?.trim() || null,
+
+          // sitelinks (VERY important)
+          sitelinks: Array.from(el.querySelectorAll('.result__sitelink')).map(s => ({
+            title: s.textContent?.trim(),
+            url: s.baseURI
+          })),
+
+          // optional enrichment
+          hasSitelinks: el.querySelectorAll('.result__sitelink').length > 0,
+
+          // classification hint
+          typeHint: (() => {
+            const u = url.toLowerCase();
+            if (u.includes("youtube.com")) return "youtube";
+            if (u.includes("reddit.com")) return "reddit";
+            if (u.includes("github.com")) return "github";
+            if (u.includes("wikipedia.org")) return "wiki";
+            return "web";
+          })(),
+
+          rawClass: el.className
         };
       });
     });
@@ -333,3 +394,43 @@ export async function browser_action(args: Record<string, any>, previousState?: 
 
 // Ensure keyboard doesn't type incredibly slow
 keyboard.config.autoDelayMs = 15;
+
+export async function channel_youtube_videos(args: Record<string, any>) {
+  const query = args.query || args.goal || 'JavaScript Tutorials';
+  const browser = await chromium.launch({ headless: false });
+  try {
+    const page = await browser.newPage();
+
+    // 1. Go to YouTube and Search
+    await page.goto('https://www.youtube.com');
+    await page.fill('input[name="search_query"]', query);
+    await page.press('input[name="search_query"]', 'Enter');
+
+    // 2. Choose the first channel from results
+    const firstChannel = page.locator('ytd-channel-renderer').first();
+    await firstChannel.locator('#main-link').click();
+
+    // WAIT for channel page (IMPORTANT)
+    await page.waitForURL(/youtube\.com\/(channel|@)/);
+
+    // 3. Go to "Videos" tab
+    await page.getByRole('tab', { name: 'Videos' }).click();
+    await page.waitForSelector('ytd-rich-grid-media');
+
+    // 4. Extract data from videos
+    const videos = await page.locator('ytd-rich-grid-media').all();
+    const data = [];
+
+    for (const video of videos.slice(0, 5)) { // Getting first 5
+      const title = await video.locator('#video-title').innerText();
+      const views = await video.locator('#metadata-line span').first().innerText();
+      data.push({ title, views });
+    }
+
+    return { success: true, result: data };
+  } catch (error: any) {
+    return { success: false, result: error.message };
+  } finally {
+    await browser.close();
+  }
+}
