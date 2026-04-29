@@ -186,6 +186,47 @@
   color: var(--text);
 }
 
+/* ── Toolbar Left Group ──────────────────────────────── */
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Agent Toggle ────────────────────────────────────── */
+.agentToggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.agentToggle:hover {
+  background: var(--hover);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.agentToggleActive {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.agentToggleActive:hover {
+  background: linear-gradient(135deg, #5558e6, #7c4fe0);
+  box-shadow: 0 3px 12px rgba(99, 102, 241, 0.45);
+}
+
 .sendBtn {
   display: flex;
   align-items: center;

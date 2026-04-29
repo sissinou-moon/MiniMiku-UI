@@ -21,11 +21,13 @@ export interface Message {
 interface Props {
   messages: Message[];
   onSend: (content: string) => void;
+  onAgentSend?: (content: string) => void;
   tabTitle: string;
 }
 
-export default function ChatPanel({ messages, onSend, tabTitle }: Props) {
+export default function ChatPanel({ messages, onSend, onAgentSend, tabTitle }: Props) {
   const [input, setInput] = useState('');
+  const [agentMode, setAgentMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -76,7 +78,11 @@ export default function ChatPanel({ messages, onSend, tabTitle }: Props) {
     const content = input.trim();
     if (!content) return;
     setInput('');
-    onSend(content);
+    if (agentMode && onAgentSend) {
+      onAgentSend(content);
+    } else {
+      onSend(content);
+    }
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }
 
@@ -133,13 +139,26 @@ export default function ChatPanel({ messages, onSend, tabTitle }: Props) {
               aria-label="Chat input"
             />
             <div className={styles.inputToolbar}>
-              <button
-                className={styles.attachBtn}
-                aria-label="Attach file"
-                title="Attach file"
-              >
-                <AttachIcon />
-              </button>
+              <div className={styles.toolbarLeft}>
+                <button
+                  className={styles.attachBtn}
+                  aria-label="Attach file"
+                  title="Attach file"
+                >
+                  <AttachIcon />
+                </button>
+
+                <button
+                  className={`${styles.agentToggle} ${agentMode ? styles.agentToggleActive : ''}`}
+                  onClick={() => setAgentMode(prev => !prev)}
+                  aria-pressed={agentMode}
+                  title={agentMode ? 'Agent mode ON — will call plan directly' : 'Agent mode OFF'}
+                >
+                  <AgentIcon />
+                  <span>Agent</span>
+                </button>
+              </div>
+
 
               <button
                 id="send-btn"
@@ -180,6 +199,15 @@ function AttachIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+    </svg>
+  );
+}
+
+function AgentIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
     </svg>
   );
 }

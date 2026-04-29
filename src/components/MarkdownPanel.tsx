@@ -165,7 +165,7 @@ export default function MarkdownPanel({ doc, onChange, onClose, onSave }: Props)
     if (doc.content !== lastExternalContent.current) {
       lastExternalContent.current = doc.content;
       const html = mdToHtml.makeHtml(doc.content || '');
-      editor.commands.setContent(html, false);
+      editor.commands.setContent(html, { emitUpdate: false });
     }
   }, [doc.content, editor]);
 

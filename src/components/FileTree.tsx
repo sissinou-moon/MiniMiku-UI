@@ -34,9 +34,10 @@ interface FolderItemProps {
   selectedPath: string;
   onSelectFile?: (path: string, name: string) => void;
   onSelect: (path: string) => void;
+  onContextAction?: (e: React.MouseEvent, node: TreeNode) => void;
 }
 
-function FolderItem({ node, depth, selectedPath, onSelectFile, onSelect }: FolderItemProps) {
+function FolderItem({ node, depth, selectedPath, onSelectFile, onSelect, onContextAction }: FolderItemProps) {
   const [open, setOpen] = useState(depth === 0);
 
   return (
@@ -45,6 +46,7 @@ function FolderItem({ node, depth, selectedPath, onSelectFile, onSelect }: Folde
         className={styles.item}
         style={{ paddingLeft: `${10 + depth * 16}px` }}
         onClick={() => setOpen((o) => !o)}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextAction?.(e, node); }}
         aria-expanded={open}
       >
         <span className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}>
@@ -66,6 +68,7 @@ function FolderItem({ node, depth, selectedPath, onSelectFile, onSelect }: Folde
                   selectedPath={selectedPath}
                   onSelectFile={onSelectFile}
                   onSelect={onSelect}
+                  onContextAction={onContextAction}
                 />
               ))
         )}
@@ -81,9 +84,10 @@ interface FileItemProps {
   selectedPath: string;
   onSelectFile?: (path: string, name: string) => void;
   onSelect: (path: string) => void;
+  onContextAction?: (e: React.MouseEvent, node: TreeNode) => void;
 }
 
-function FileItem({ node, depth, selectedPath, onSelectFile, onSelect }: FileItemProps) {
+function FileItem({ node, depth, selectedPath, onSelectFile, onSelect, onContextAction }: FileItemProps) {
   const isSelected = node.path === selectedPath;
   return (
     <button
@@ -93,6 +97,7 @@ function FileItem({ node, depth, selectedPath, onSelectFile, onSelect }: FileIte
         onSelect(node.path);
         onSelectFile?.(node.path, node.name);
       }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextAction?.(e, node); }}
       title={node.name}
     >
       <span className={styles.filespacer} />
@@ -109,13 +114,14 @@ interface Props {
   selectedPath: string;
   onSelectFile?: (path: string, name: string) => void;
   onSelect: (path: string) => void;
+  onContextAction?: (e: React.MouseEvent, node: TreeNode) => void;
 }
 
-export default function FileTree({ node, depth, selectedPath, onSelectFile, onSelect }: Props) {
+export default function FileTree({ node, depth, selectedPath, onSelectFile, onSelect, onContextAction }: Props) {
   if (node.type === 'folder') {
-    return <FolderItem node={node} depth={depth} selectedPath={selectedPath} onSelectFile={onSelectFile} onSelect={onSelect} />;
+    return <FolderItem node={node} depth={depth} selectedPath={selectedPath} onSelectFile={onSelectFile} onSelect={onSelect} onContextAction={onContextAction} />;
   }
-  return <FileItem node={node} depth={depth} selectedPath={selectedPath} onSelectFile={onSelectFile} onSelect={onSelect} />;
+  return <FileItem node={node} depth={depth} selectedPath={selectedPath} onSelectFile={onSelectFile} onSelect={onSelect} onContextAction={onContextAction} />;
 }
 
 /* ── SVG icon components ───────────────────────────────────────────────────── */

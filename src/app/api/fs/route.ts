@@ -40,6 +40,32 @@ export async function POST(req: Request) {
         }
         throw err;
       }
+
+    } else if (action === 'rename') {
+      const { newName } = body;
+      if (!newName) {
+        return NextResponse.json({ success: false, error: 'newName is required for rename' }, { status: 400 });
+      }
+      const newPath = path.resolve(path.dirname(absolutePath), newName);
+      if (!newPath.startsWith(WORKSPACE_DIR)) {
+        return NextResponse.json({ success: false, error: 'Invalid new path' }, { status: 403 });
+      }
+      await fs.rename(absolutePath, newPath);
+      return NextResponse.json({ success: true, message: 'Renamed successfully' });
+
+    } else if (action === 'mkdir') {
+      await fs.mkdir(absolutePath, { recursive: true });
+      return NextResponse.json({ success: true, message: 'Folder created successfully' });
+
+    } else if (action === 'create') {
+      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+      await fs.writeFile(absolutePath, '', 'utf8');
+      return NextResponse.json({ success: true, message: 'File created successfully' });
+
+    } else if (action === 'delete') {
+      await fs.rm(absolutePath, { recursive: true, force: true });
+      return NextResponse.json({ success: true, message: 'Deleted successfully' });
+
     } else {
       return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
     }

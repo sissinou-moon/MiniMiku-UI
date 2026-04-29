@@ -16,6 +16,7 @@ interface TabData {
   messages: Message[];
   doc?: MarkdownDoc;
   originalContent?: string; // tracks saved state for dirty detection
+  isLLMGenerated?: boolean; // true for docs from LLM (Decision Report), false for workspace files
 }
 
 /* ── Tab factory ───────────────────────────────────────────────────────────── */
@@ -310,6 +311,26 @@ export default function Home() {
     fetchStream();
   }, [activeTabId]);
 
+  /* ── Agent mode send (bypass normal LLM, call plan URL directly) ── */
+  const handleAgentSend = useCallback((content: string) => {
+    // Add user message to chat
+    const userMsg: Message = {
+      id: `msg-${Date.now()}-u`,
+      role: 'user',
+      content,
+      timestamp: new Date(),
+    };
+    setTabsData(prev =>
+      prev.map(td =>
+        td.id !== activeTabId ? td : { ...td, messages: [...td.messages, userMsg] }
+      )
+    );
+
+    // Open agent panel and call plan stream directly
+    setAgentPanelOpen(true);
+    fetchPlanStream(content);
+  }, [activeTabId, fetchPlanStream]);
+
   /* ── Markdown Actions ────────────────────────────── */
   const handleDownloadMarkdown = useCallback(() => {
     if (!active || active.type !== 'file' || !active.doc) return;
@@ -409,7 +430,7 @@ export default function Home() {
 
       if (existingIdx !== -1) {
         const next = [...prev];
-        next[existingIdx] = { ...next[existingIdx], doc: { ...next[existingIdx].doc, ...doc } };
+        next[existingIdx] = { ...next[existingIdx], doc: { ...next[existingIdx].doc, ...doc }, isLLMGenerated: true };
         // Defer activation to ensure state settles
         setTimeout(() => setActiveTabId(next[existingIdx].id), 0);
         return next;
@@ -422,7 +443,8 @@ export default function Home() {
         title,
         type: 'file',
         messages: [],
-        doc: { ...doc, title }
+        doc: { ...doc, title },
+        isLLMGenerated: true
       }];
     });
   }, []);
@@ -488,7 +510,7 @@ export default function Home() {
         onTabAdd={handleAddTab}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen((o) => !o)}
-        activeDoc={active?.type === 'file' && active.doc ? {
+        activeDoc={active?.type === 'file' && active.doc && active.isLLMGenerated ? {
           title: active.doc.title || active.doc.filePath?.split('/').pop() || 'Untitled.md',
           onDownload: handleDownloadMarkdown,
           onSave: handleSaveMarkdown
@@ -502,6 +524,7 @@ export default function Home() {
               key={active.id}
               messages={active.messages}
               onSend={handleSend}
+              onAgentSend={handleAgentSend}
               tabTitle={active.title}
             />
           )}
