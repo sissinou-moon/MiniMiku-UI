@@ -101,58 +101,19 @@ export default function Home() {
       });
       if (!res.body) return;
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullPlanStr = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || '';
-
-        let addedThink = '';
-        let addedContent = '';
-
-        for (const part of parts) {
-          if (!part.trim()) continue;
-          const lines = part.split('\n');
-          let event = '';
-          let dataLines: string[] = [];
-
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              event = line.substring(7).trim();
-            } else if (line.startsWith('data: ')) {
-              dataLines.push(line.substring(6));
-            } else if (line.startsWith('data:')) {
-              dataLines.push(line.substring(5));
-            }
-          }
-          const data = dataLines.join('\n');
-          if (event === 'think') addedThink += data;
-          else if (event === 'content' || (!event && dataLines.length > 0)) addedContent += data;
-        }
-
-        if (addedThink) setAgentThinking(prev => prev + addedThink);
-        if (addedContent) fullPlanStr += addedContent;
-      }
-
       setAgentLoading(false);
+
       try {
-        const m = fullPlanStr.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-        if (m) {
-          const parsed = JSON.parse(m[1]);
-          if (parsed.type === 'plan' && Array.isArray(parsed.steps)) {
-            console.log(parsed.steps)
-            setAgentSteps(parsed.steps);
-          }
+        const parsed = await res.json();
+        if (parsed.type === 'plan' && Array.isArray(parsed.steps)) {
+          console.log('[fetchPlanStream] Parsed steps:', parsed.steps);
+          setAgentSteps(parsed.steps);
+        } else {
+          console.warn('[fetchPlanStream] JSON found but not a plan:', parsed.type);
         }
       } catch (e) {
-        console.error('Failed to parse plan steps', e);
+        console.error('[fetchPlanStream] Failed to parse plan steps:', e);
+        console.error('[fetchPlanStream] Raw response:', res);
       }
     } catch (err) {
       console.error('Plan stream error:', err);
